@@ -1,0 +1,18 @@
+
+================================ SCRIPT 3 ================================
+
+
+ Best params:
+c(1, 0)
+
+ 
+ Best params:
+5
+
+ 
+ Best params:
+419
+
+
+Run time:
+Time difference of 51.44176 mins

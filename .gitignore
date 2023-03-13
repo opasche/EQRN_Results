@@ -1,3 +1,20 @@
+# Specific
+z_*
+tmp_*
+deprecated/
+data/Data/**
+data/data_wrangled/**
+data/data_de/
+data/Switzerland/qrn_intermediate_quantile_best/Data_backup.rds
+R/EXQAR/
+R/EXQAR*
+TO_DO.txt
+data/simulations/iid_data_interm/*/GRF_fit.rds
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+
 # History files
 .Rhistory
 .Rapp.history

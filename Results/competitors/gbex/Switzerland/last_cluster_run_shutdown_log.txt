@@ -1,0 +1,18 @@
+
+ Best params:
+c(2, 1)
+
+ 
+ Best params:
+5
+
+ 
+ Best params:
+1293
+
+
+Run time:
+Time difference of 7.722883 hours
+
+Run time (cluster_run_shutdown.R):
+Time difference of 7.726324 hours

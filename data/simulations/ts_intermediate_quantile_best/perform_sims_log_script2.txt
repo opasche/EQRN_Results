@@ -1,0 +1,33 @@
+
+================================ SCRIPT 2 ================================
+
+Epoch: 1 out of 1000 , average train loss: 1.190144, validation loss: 0.4849932 , lr= 0.001
+Early stopping at epoch: 48 , average train loss: 0.4724671 , validation loss: 0.4529868 , lr= 4.096e-06 
+Epoch: 1 out of 1000 , average train loss: 1.214069, validation loss: 0.5191711 , lr= 0.001
+Early stopping at epoch: 48 , average train loss: 0.4719557 , validation loss: 0.4526735 , lr= 4.096e-06 
+Epoch: 1 out of 1000 , average train loss: 1.199209, validation loss: 0.5701706 , lr= 0.001
+Early stopping at epoch: 49 , average train loss: 0.4709926 , validation loss: 0.4531864 , lr= 4.096e-06 
+Epoch: 1 out of 1000 , average train loss: 1.112959, validation loss: 0.5535249 , lr= 0.001
+Early tolerence stopping at epoch: 67 , average train loss: 0.4584391, validation loss: 0.4892377, lr= 4.096e-06 
+Epoch: 1 out of 1000 , average train loss: 1.206058, validation loss: 0.5410068 , lr= 0.001
+Early stopping at epoch: 48 , average train loss: 0.4594711 , validation loss: 0.4890252 , lr= 1.024e-05 
+Epoch: 1 out of 1000 , average train loss: 1.22193, validation loss: 0.5375477 , lr= 0.001
+Early stopping at epoch: 66 , average train loss: 0.4577195 , validation loss: 0.4895062 , lr= 4.096e-06 
+Epoch: 1 out of 1000 , average train loss: 1.234347, validation loss: 0.5372868 , lr= 0.001
+Early stopping at epoch: 61 , average train loss: 0.4623149 , validation loss: 0.4795667 , lr= 4.096e-06 
+Epoch: 1 out of 1000 , average train loss: 1.208004, validation loss: 0.5198843 , lr= 0.001
+Early stopping at epoch: 52 , average train loss: 0.4622195 , validation loss: 0.4792024 , lr= 4.096e-06 
+Epoch: 1 out of 1000 , average train loss: 1.247701, validation loss: 0.5866389 , lr= 0.001
+Early stopping at epoch: 59 , average train loss: 0.4609206 , validation loss: 0.4791899 , lr= 4.096e-06 
+Epoch: 1 out of 1000 , average train loss: 1.249564, validation loss: 0.4780873 , lr= 0.001
+Early stopping at epoch: 36 , average train loss: 0.4711652 , validation loss: 0.4545432 , lr= 1.024e-05 
+Epoch: 1 out of 1000 , average train loss: 1.301084, validation loss: 0.5108728 , lr= 0.001
+Early stopping at epoch: 39 , average train loss: 0.4710872 , validation loss: 0.4554373 , lr= 1.024e-05 
+Epoch: 1 out of 1000 , average train loss: 1.188256, validation loss: 0.5075651 , lr= 0.001
+Early stopping at epoch: 43 , average train loss: 0.470328 , validation loss: 0.4561787 , lr= 1.024e-05 
+
+Elapsed time (QRN foldwise fit predictions):
+Time difference of 2.552997 hours
+
+Run time:
+Time difference of 2.560137 hours

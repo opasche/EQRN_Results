@@ -1,0 +1,113 @@
+here() starts at /home/pascheo/EQRNN
+[1] FALSE FALSE
+── Attaching packages ─────────────────────────────────────── tidyverse 1.3.1 ──
+✔ ggplot2 3.3.5     ✔ purrr   0.3.4
+✔ tibble  3.1.6     ✔ dplyr   1.0.8
+✔ tidyr   1.2.0     ✔ stringr 1.4.0
+✔ readr   2.1.2     ✔ forcats 0.5.1
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+Loading required package: mgcv
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+This is mgcv 1.8-38. For overview type 'help("mgcv-package")'.
+
+Attaching package: ‘tsibble’
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, union
+
+Loading required package: fabletools
+
+Attaching package: ‘feasts’
+
+The following object is masked from ‘package:nlme’:
+
+    ACF
+
+
+Attaching package: ‘lubridate’
+
+The following object is masked from ‘package:tsibble’:
+
+    interval
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+
+Attaching package: ‘EnvStats’
+
+The following objects are masked from ‘package:stats’:
+
+    predict, predict.lm
+
+The following object is masked from ‘package:base’:
+
+    print.default
+
+Loading required package: stats4
+Loading required package: splines
+
+Attaching package: ‘VGAM’
+
+The following objects are masked from ‘package:EnvStats’:
+
+    calibrate, dpareto, ppareto, qpareto, rpareto
+
+The following object is masked from ‘package:mgcv’:
+
+    s
+
+The following objects are masked from ‘package:evd’:
+
+    dfrechet, dgev, dgpd, dgumbel, pfrechet, pgev, pgpd, pgumbel,
+    qfrechet, qgev, qgpd, qgumbel, rfrechet, rgev, rgpd, rgumbel,
+    venice
+
+The following object is masked from ‘package:tidyr’:
+
+    fill
+
+
+Attaching package: ‘sfsmisc’
+
+The following object is masked from ‘package:dplyr’:
+
+    last
+
+Loading required package: foreach
+
+Attaching package: ‘foreach’
+
+The following objects are masked from ‘package:purrr’:
+
+    accumulate, when
+
+Rows: 37255 Columns: 69
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+dbl  (68): station_1, station_2, station_3, station_4, station_5, station_6,...
+date  (1): Date
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+New names:
+* `` -> ...1
+Rows: 31046 Columns: 106
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+dbl  (105): AIE, AIR, GOS, ALT, ANT, THU, BER, BRW, WIT, CDF, CHD, CHM, COU,...
+date   (1): ...1
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.

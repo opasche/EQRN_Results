@@ -1,0 +1,18 @@
+
+================================ SCRIPT 1 ================================
+
+
+ Best params:
+c(1, 0)
+
+ 
+ Best params:
+6
+
+ 
+ Best params:
+556
+
+
+Run time:
+Time difference of 54.087 mins
