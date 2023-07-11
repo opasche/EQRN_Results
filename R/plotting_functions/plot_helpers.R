@@ -406,7 +406,8 @@ plot_predictions_2D <- function(pred_eqrnn_test, pred_gbex_test, pred_grf_test, 
 }
 
 
-plot_validation_vs_resid <- function(results_tibble, groupby="hidden_fct", add_title="", loss="Valid_loss", MSAE_prefix="test_"){
+plot_validation_vs_resid <- function(results_tibble, groupby="hidden_fct", add_title="", loss="Valid_loss", MSAE_prefix="test_",
+                                     color_scale=NULL){
   y_label <- if(loss=="Valid_loss"){"Validation loss"}else{str_replace_all(loss,"_"," ")}
   val_res_plt <- list()
   results_tibble <- results_tibble %>% mutate_at(vars("test_MSE_q0.995","test_MSE_q0.999","test_MSE_q0.9995"), list(~ sqrt(.)))
@@ -423,6 +424,12 @@ plot_validation_vs_resid <- function(results_tibble, groupby="hidden_fct", add_t
     geom_point() + labs(y=NULL, x=paste0(str_replace_all(MSAE_prefix,"_"," "),"MAE (q=0.999)"))
   val_res_plt[[6]] <- results_tibble %>% ggplot(aes_string(x=paste0(MSAE_prefix,"MAE_q0.9995"), y=loss, group=groupby, color=groupby)) +
     geom_point() + labs(y=NULL, x=paste0(str_replace_all(MSAE_prefix,"_"," "),"MAE (q=0.9995)"))
+  
+  if(!is.null(color_scale)){
+    for (i in seq_along(val_res_plt)) {
+      val_res_plt[[i]] <- val_res_plt[[i]]  + scale_color_manual(values=color_scale)
+    }
+  }
   
   validation_vs_resid <- ggpubr::ggarrange(plotlist=val_res_plt, labels=NULL, ncol=3, nrow=2,
                                            common.legend=TRUE,legend="bottom", vjust=1.5, align="hv") %>%
