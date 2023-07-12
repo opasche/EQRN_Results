@@ -116,7 +116,7 @@ predict_unconditional_quantiles <- function(interm_lvl, quantiles = c(0.99), Y, 
   
   predictions <- matrix(q_hat, nrow = ntest, ncol = length(quantiles), byrow = T)
   pars <- cbind(rep(sigma, ntest) , rep(xi, ntest))
-  return(list(predictions = predictions, pars = pars))
+  return(list(predictions = predictions, pars = pars, threshold=t0))
 }
 
 #' Predict semi-conditional extreme quantiles using peaks over threshold

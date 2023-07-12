@@ -255,6 +255,32 @@ lagged_features <- function(X, max_lag, drop_present=TRUE){
   return(Xl)
 }
 
+#' Insert value in vector
+#'
+#' @param vect A 1-D vector.
+#' @param val A value to insert in the vector.
+#' @param ind The index at which to insert the value in the vector, 
+#' must be an integer between \code{1} and \code{length(vect) + 1}.
+#'
+#' @return A 1-D vector of length \code{length(vect) + 1}, 
+#' with \code{val} inserted at position \code{ind} in the original \code{vect}.
+#' @export
+#'
+#' @examples
+vector_insert <- function(vect, val, ind){
+  n <- length(vect)
+  if(ind<1 | ind>(n+1)){
+    stop("In 'vector_insert': 'ind' must be an integer between 1 and (length(vect) + 1).")
+  }
+  if(ind == 1){
+    return(c(val, vect))
+  }
+  if(ind == (n+1)){
+    return(c(vect, val))
+  }
+  return(c(vect[1:(ind-1)], val, vect[ind:n]))
+}
+
 
 # ==== Parallel helpers ====
 
