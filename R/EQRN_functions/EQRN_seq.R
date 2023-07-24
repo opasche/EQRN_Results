@@ -1,18 +1,18 @@
 
 #' @title EQRN fit function for sequential and time series data
 #'
-#' @description Use the \code{\link{EQRN_fit_restart}} wrapper instead, with \code{data_type="seq"}, for better stability using fitting restart.
+#' @description Use the [EQRN_fit_restart()] wrapper instead, with `data_type="seq"`, for better stability using fitting restart.
 #'
 #' @param X Matrix of covariates, for training. Entries must be in sequential order.
 #' @param y Response variable vector to model the extreme conditional quantile of, for training. Entries must be in sequential order.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{interm_lvl}.
-#' @param interm_lvl Probability level for the intermediate quantiles \code{intermediate_quantiles}.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `interm_lvl`.
+#' @param interm_lvl Probability level for the intermediate quantiles `intermediate_quantiles`.
 #' @param shape_fixed Whether the shape estimate depends on the covariates or not (bool).
 #' @param hidden_size Dimension of the hidden latent state variables in the recurrent network.
 #' @param num_layers Number of recurrent layers.
-#' @param rnn_type Type of recurrent architecture, can be one of \code{"lstm"} (default) or \code{"gru"}.
+#' @param rnn_type Type of recurrent architecture, can be one of `"lstm"` (default) or `"gru"`.
 #' @param p_drop Probability parameter for dropout before each hidden layer for regularization during training.
-#' @param intermediate_q_feature Whether to use the \code{intermediate_quantiles} as an additional covariate, by appending it to the \code{X} matrix (bool).
+#' @param intermediate_q_feature Whether to use the `intermediate_quantiles` as an additional covariate, by appending it to the `X` matrix (bool).
 #' @param learning_rate Initial learning rate for the optimizer during training of the neural network.
 #' @param L2_pen L2 weight penalty parameter for regularization during training.
 #' @param seq_len Data sequence length (i.e. number of past observations) used during training to predict each response quantile.
@@ -20,11 +20,11 @@
 #' @param scale_features Whether to rescale each input covariates to zero mean and unit covariance before applying the network (recommended).
 #' @param n_epochs Number of training epochs.
 #' @param batch_size Batch size used during training.
-#' @param X_valid Covariates in a validation set, or \code{NULL}. Entries must be in sequential order.
+#' @param X_valid Covariates in a validation set, or `NULL`. Entries must be in sequential order.
 #' Used for monitoring validation loss during training, enabling learning-rate decay and early stopping.
-#' @param y_valid Response variable in a validation set, or \code{NULL}. Entries must be in sequential order.
+#' @param y_valid Response variable in a validation set, or `NULL`. Entries must be in sequential order.
 #' Used for monitoring validation loss during training, enabling learning-rate decay and early stopping.
-#' @param quant_valid Intermediate conditional quantiles at level \code{interm_lvl} in a validation set, or \code{NULL}.
+#' @param quant_valid Intermediate conditional quantiles at level `interm_lvl` in a validation set, or `NULL`.
 #' Used for monitoring validation loss during training, enabling learning-rate decay and early stopping.
 #' @param lr_decay Learning rate decay factor.
 #' @param patience_decay Number of epochs of non-improving validation loss before a learning-rate decay is performed.
@@ -33,20 +33,26 @@
 #' @param tol Tolerance for stopping training, in case of no significant training loss improvements.
 #' @param orthogonal_gpd Whether to use the orthogonal reparametrization of the estimated GPD parameters (recommended).
 #' @param patience_lag The validation loss is considered to be non-improving
-#' if it is larger than on any of the previous \code{patience_lag} epochs.
+#' if it is larger than on any of the previous `patience_lag` epochs.
 #' @param fold_separation Index of fold separation or sequential discontinuity in the data.
-#' @param optim_met DEPRECATED. Optimization algorithm to use during training. \code{"adam"} is the default.
+#' @param optim_met DEPRECATED. Optimization algorithm to use during training. `"adam"` is the default.
+#' @param seed Integer random seed for reproducibility in network weight initialization.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
-#' @return An EQRN object of classes \code{c("EQRN_seq", "EQRN")}, containing the fitted network,
+#' @return An EQRN object of classes `c("EQRN_seq", "EQRN")`, containing the fitted network,
 #' as well as all the relevant information for its usage in other functions.
 #' @export
+#' @import torch
+#' @importFrom coro loop
 #'
-#' @examples
+#' @examples #TODO
 EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=FALSE, hidden_size=10, num_layers=1, rnn_type=c("lstm","gru"), p_drop=0,
-                          intermediate_q_feature=TRUE, learning_rate=1e-4, L2_pen=0, seq_len=10, shape_penalty=0,
-                          scale_features=TRUE, n_epochs=1e4, batch_size=256,
-                          X_valid=NULL, y_valid=NULL, quant_valid=NULL, lr_decay=1, patience_decay=n_epochs, min_lr=0, patience_stop=n_epochs,
-                          tol=1e-5, orthogonal_gpd=TRUE, patience_lag=1, fold_separation=NULL, optim_met="adam"){
+                         intermediate_q_feature=TRUE, learning_rate=1e-4, L2_pen=0, seq_len=10, shape_penalty=0,
+                         scale_features=TRUE, n_epochs=500, batch_size=256,
+                         X_valid=NULL, y_valid=NULL, quant_valid=NULL, lr_decay=1, patience_decay=n_epochs, min_lr=0, patience_stop=n_epochs,
+                         tol=1e-5, orthogonal_gpd=TRUE, patience_lag=1, fold_separation=NULL, optim_met="adam", seed=NULL, device=default_device()){
+  
+  if(!is.null(seed)){torch::torch_manual_seed(seed)}
   
   rnn_type <- match.arg(rnn_type)
   iq_feat <- c(intermediate_quantiles[2:length(intermediate_quantiles)],last_elem(intermediate_quantiles))
@@ -57,10 +63,10 @@ EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=F
   
   # Data Loader
   trainset <- mts_dataset(y, Xs, seq_len, scale_Y=scale_features,
-                          intermediate_quantiles=intermediate_quantiles, fold_separation=fold_separation)
+                          intermediate_quantiles=intermediate_quantiles, fold_separation=fold_separation, device=device)
   Y_scaling <- trainset$get_Y_scaling()
   n_train <- length(trainset)
-  trainloader <- dataloader(trainset, batch_size=batch_size, shuffle=TRUE)
+  trainloader <- torch::dataloader(trainset, batch_size=batch_size, shuffle=TRUE)
   
   # Validation dataset (if everything needed is given)
   do_validation <- (!is.null(y_valid) & !is.null(X_valid) & !is.null(quant_valid))
@@ -68,9 +74,9 @@ EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=F
     iq_feat_valid <- c(quant_valid[2:length(quant_valid)],last_elem(quant_valid))
     data_scaling_ex <- process_features(X=X_valid, intermediate_q_feature=intermediate_q_feature, intermediate_quantiles=iq_feat_valid,
                                         X_scaling=X_scaling, scale_features=scale_features)
-    validset <- mts_dataset(y_valid, data_scaling_ex$X_scaled, seq_len, scale_Y=Y_scaling, intermediate_quantiles=quant_valid)
+    validset <- mts_dataset(y_valid, data_scaling_ex$X_scaled, seq_len, scale_Y=Y_scaling, intermediate_quantiles=quant_valid, device=device)
     n_valid <- length(validset)
-    validloader <- dataloader(validset, batch_size=batch_size, shuffle=FALSE)
+    validloader <- torch::dataloader(validset, batch_size=batch_size, shuffle=FALSE)
   }
   
   # Semi-conditional GPD fit (on y rescaled excesses wrt intermediate_quantiles)
@@ -83,7 +89,7 @@ EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=F
   # Instantiate network
   Dim_in <- ncol(Xs)+1
   network <- Recurrent_GPD_net(type=rnn_type, nb_input_features=Dim_in, hidden_size=hidden_size,
-                               num_layers=num_layers, dropout=p_drop, shape_fixed=shape_fixed)$to(device=device)
+                               num_layers=num_layers, dropout=p_drop, shape_fixed=shape_fixed, device=device)$to(device=device)
   
   # Optimizer
   optimizer <- setup_optimizer_seq(network, learning_rate, L2_pen, optim_met=optim_met)
@@ -111,7 +117,7 @@ EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=F
       # Check for bad initialization
       while(e<2 & is.nan(loss$item())){
         network <- Recurrent_GPD_net(type=rnn_type, nb_input_features=Dim_in, hidden_size=hidden_size,
-                                     num_layers=num_layers, dropout=p_drop, shape_fixed=shape_fixed)$to(device=device)
+                                     num_layers=num_layers, dropout=p_drop, shape_fixed=shape_fixed, device=device)$to(device=device)
         network$train()
         optimizer <- setup_optimizer_seq(network, learning_rate, L2_pen, optim_met=optim_met)
         net_out <- network(b[[1]])
@@ -156,11 +162,6 @@ EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=F
             nb_not_improving_val <- 0
             nb_not_improving_lr <- 0
           }
-          if(abs(loss_log_train[e]-loss_log_train[e-1])<tol){
-            nb_stable <- nb_stable + 1
-          } else {
-            nb_stable <- 0
-          }
         }
       }
       # Learning rate decay
@@ -175,8 +176,10 @@ EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=F
         break
       }
       network$train()
-    } else {
-      # If no validation
+    }
+    
+    # Tolerance stop
+    if(e>1){
       if(abs(loss_log_train[e]-loss_log_train[e-1])<tol){
         nb_stable <- nb_stable + 1
       } else {
@@ -200,8 +203,8 @@ EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=F
   network$eval()
   
   fit_eqrn_ts <- list(fit_nn = network, interm_lvl = interm_lvl, intermediate_q_feature = intermediate_q_feature, seq_len=seq_len,
-                       train_loss = loss_log_train[1:e], X_scaling=X_scaling, Y_scaling=Y_scaling, orthogonal_gpd=orthogonal_gpd,
-                       n_obs = length(y), n_excesses = n_train, excesses_ratio = n_train/(length(y)-seq_len))
+                      train_loss = loss_log_train[1:e], X_scaling=X_scaling, Y_scaling=Y_scaling, orthogonal_gpd=orthogonal_gpd,
+                      n_obs = length(y), n_excesses = n_train, excesses_ratio = n_train/(length(y)-seq_len))
   if(do_validation){
     fit_eqrn_ts$valid_loss <- loss_log_valid[1:e]
   }
@@ -213,68 +216,70 @@ EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=F
 
 #' Predict function for an EQRN_seq fitted object
 #'
-#' @param fit_eqrn Fitted \code{"EQRN_seq"} object.
+#' @param fit_eqrn Fitted `"EQRN_seq"` object.
 #' @param X Matrix of covariates to predict the corresponding response's conditional quantiles.
-#' @param Y Response variable vector corresponding to the rows of \code{X}.
+#' @param Y Response variable vector corresponding to the rows of `X`.
 #' @param quantiles_predict Vector of probability levels at which to predict the conditional quantiles.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{fit_eqrn$interm_lvl}.
-#' @param interm_lvl Optional, checks that \code{interm_lvl == fit_eqrn$interm_lvl}.
-#' @param crop_predictions Whether to crop out the fist \code{seq_len} observations (which are \code{NA}) from the returned matrix.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `fit_eqrn$interm_lvl`.
+#' @param interm_lvl Optional, checks that `interm_lvl == fit_eqrn$interm_lvl`.
+#' @param crop_predictions Whether to crop out the fist `seq_len` observations (which are `NA`) from the returned matrix.
 #' @param seq_len Data sequence length (i.e. number of past observations) used to predict each response quantile.
-#' By default, the training \code{fit_eqrn$seq_len} is used.
+#' By default, the training `fit_eqrn$seq_len` is used.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
-#' @return Matrix of size \code{nrow(X)} times \code{quantiles_predict}
-#' (or \code{nrow(X)-seq_len} times \code{quantiles_predict} if \code{crop_predictions})
+#' @return Matrix of size `nrow(X)` times `quantiles_predict`
+#' (or `nrow(X)-seq_len` times `quantiles_predict` if `crop_predictions`)
 #' containing the conditional quantile estimates of the corresponding response observations at each probability level.
-#' Simplifies to a vector if \code{length(quantiles_predict)==1}.
+#' Simplifies to a vector if `length(quantiles_predict)==1`.
 #' @export
 #'
-#' @examples
+#' @examples #TODO
 EQRN_predict_seq <- function(fit_eqrn, X, Y, quantiles_predict, intermediate_quantiles, interm_lvl,
-                             crop_predictions=FALSE, seq_len=fit_eqrn$seq_len){
+                             crop_predictions=FALSE, seq_len=fit_eqrn$seq_len, device=default_device()){
   
   if(length(dim(quantiles_predict))>1){
-    stop("Please provide a single value or 1D vector as quantiles_predict in EQRN_predict.")
+    stop("Please provide a single value or 1D vector as quantiles_predict in EQRN_predict_seq.")
   }
   
   if(length(quantiles_predict)==1){
     return(EQRN_predict_internal_seq(fit_eqrn, X, Y, quantiles_predict, intermediate_quantiles,
-                                     interm_lvl, crop_predictions=crop_predictions, seq_len=seq_len))
+                                     interm_lvl, crop_predictions=crop_predictions, seq_len=seq_len, device=device))
   } else if(length(quantiles_predict)>1){
     nb_quantiles_predict <- length(quantiles_predict)
     length_preds <- if(crop_predictions){nrow(X)-seq_len}else{nrow(X)}
     predicted_quantiles <- matrix(as.double(NA), nrow=length_preds, ncol=nb_quantiles_predict)
     for(i in 1:nb_quantiles_predict){
       predicted_quantiles[,i] <- EQRN_predict_internal_seq(fit_eqrn, X, Y, quantiles_predict[i], intermediate_quantiles,
-                                                           interm_lvl, crop_predictions=crop_predictions, seq_len=seq_len)
+                                                           interm_lvl, crop_predictions=crop_predictions, seq_len=seq_len, device=device)
     }
     return(predicted_quantiles)
   } else {
-    stop("Please provide a single value or 1D vector as quantiles_predict in EQRN_predict.")
+    stop("Please provide a single value or 1D vector as quantiles_predict in EQRN_predict_seq.")
   }
 }
 
 #' Internal predict function for an EQRN_seq fitted object
 #'
-#' @param fit_eqrn Fitted \code{"EQRN_seq"} object.
+#' @param fit_eqrn Fitted `"EQRN_seq"` object.
 #' @param X Matrix of covariates to predict the corresponding response's conditional quantiles.
-#' @param Y Response variable vector corresponding to the rows of \code{X}.
+#' @param Y Response variable vector corresponding to the rows of `X`.
 #' @param quantile_predict Probability level at which to predict the conditional quantile.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{fit_eqrn$interm_lvl}.
-#' @param interm_lvl Optional, checks that \code{interm_lvl == fit_eqrn$interm_lvl}.
-#' @param crop_predictions Whether to crop out the fist \code{seq_len} observations (which are \code{NA}) from the returned vector
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `fit_eqrn$interm_lvl`.
+#' @param interm_lvl Optional, checks that `interm_lvl == fit_eqrn$interm_lvl`.
+#' @param crop_predictions Whether to crop out the fist `seq_len` observations (which are `NA`) from the returned vector
 #' @param seq_len Data sequence length (i.e. number of past observations) used to predict each response quantile.
-#' By default, the training \code{fit_eqrn$seq_len} is used.
+#' By default, the training `fit_eqrn$seq_len` is used.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
-#' @return Vector of length \code{nrow(X)} (or \code{nrow(X)-seq_len} if \code{crop_predictions})
+#' @return Vector of length `nrow(X)` (or `nrow(X)-seq_len` if `crop_predictions`)
 #' containing the conditional quantile estimates of the response associated to each covariate observation at each probability level.
 #'
-#' @examples
+#' @examples #TODO
 EQRN_predict_internal_seq <- function(fit_eqrn, X, Y, quantile_predict, intermediate_quantiles, interm_lvl,
-                                      crop_predictions=FALSE, seq_len=fit_eqrn$seq_len){
+                                      crop_predictions=FALSE, seq_len=fit_eqrn$seq_len, device=default_device()){
   
   GPD_params_pred <- EQRN_predict_params_seq(fit_eqrn, X, Y, intermediate_quantiles,
-                                          return_parametrization="classical", interm_lvl=interm_lvl, seq_len=seq_len)
+                                             return_parametrization="classical", interm_lvl=interm_lvl, seq_len=seq_len, device=device)
   sigmas <- GPD_params_pred$scales
   xis <- GPD_params_pred$shapes
   
@@ -291,22 +296,25 @@ EQRN_predict_internal_seq <- function(fit_eqrn, X, Y, quantile_predict, intermed
 
 #' GPD parameters prediction function for an EQRN_seq fitted object
 #'
-#' @param fit_eqrn Fitted \code{"EQRN_seq"} object.
+#' @param fit_eqrn Fitted `"EQRN_seq"` object.
 #' @param X Matrix of covariates to predict conditional GPD parameters.
-#' @param Y Response variable vector corresponding to the rows of \code{X}.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{fit_eqrn$interm_lvl}.
-#' @param return_parametrization Which parametrization to return the parameters in, either \code{"classical"} or \code{"orthogonal"}.
-#' @param interm_lvl Optional, checks that \code{interm_lvl == fit_eqrn$interm_lvl}.
+#' @param Y Response variable vector corresponding to the rows of `X`.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `fit_eqrn$interm_lvl`.
+#' @param return_parametrization Which parametrization to return the parameters in, either `"classical"` or `"orthogonal"`.
+#' @param interm_lvl Optional, checks that `interm_lvl == fit_eqrn$interm_lvl`.
 #' @param seq_len Data sequence length (i.e. number of past observations) used to predict each response quantile.
-#' By default, the training \code{fit_eqrn$seq_len} is used.
+#' By default, the training `fit_eqrn$seq_len` is used.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
-#' @return Named list containing: \code{"scales"} and \code{"shapes"} as numerical vectors of length \code{nrow(X)},
-#' and the \code{seq_len} used.
+#' @return Named list containing: `"scales"` and `"shapes"` as numerical vectors of length `nrow(X)`,
+#' and the `seq_len` used.
 #' @export
+#' @import torch
+#' @importFrom coro loop
 #'
-#' @examples
+#' @examples #TODO
 EQRN_predict_params_seq <- function(fit_eqrn, X, Y, intermediate_quantiles=NULL, return_parametrization=c("classical","orthogonal"),
-                                    interm_lvl=fit_eqrn$interm_lvl, seq_len=fit_eqrn$seq_len){
+                                    interm_lvl=fit_eqrn$interm_lvl, seq_len=fit_eqrn$seq_len, device=default_device()){
   ## return_parametrization controls the desired parametrization of the output parameters
   ## (works for both "orthogonal_gpd" EQRN parametrizations, by converting if needed)
   
@@ -318,8 +326,8 @@ EQRN_predict_params_seq <- function(fit_eqrn, X, Y, intermediate_quantiles=NULL,
   X_feats <- process_features(X, intermediate_q_feature=fit_eqrn$intermediate_q_feature,
                               intermediate_quantiles=iq_feat, X_scaling=fit_eqrn$X_scaling)$X_scaled
   testset <- mts_dataset(Y, X_feats, seq_len, scale_Y=fit_eqrn$Y_scaling,
-                         intermediate_quantiles=NULL)
-  testloader <- dataloader(testset, batch_size=batch_size_default(testset), shuffle=FALSE)
+                         intermediate_quantiles=NULL, device=device)
+  testloader <- torch::dataloader(testset, batch_size=batch_size_default(testset), shuffle=FALSE)
   
   network <- fit_eqrn$fit_nn
   network$eval()
@@ -346,33 +354,34 @@ EQRN_predict_params_seq <- function(fit_eqrn, X, Y, intermediate_quantiles=NULL,
 #' Tail excess probability prediction using an EQRN_seq object
 #'
 #' @param val Quantile value(s) used to estimate the conditional excess probability or cdf.
-#' @param fit_eqrn Fitted \code{"EQRN_seq"} object.
+#' @param fit_eqrn Fitted `"EQRN_seq"` object.
 #' @param X Matrix of covariates to predict the response's conditional excess probabilities.
-#' @param Y Response variable vector corresponding to the rows of \code{X}.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{fit_eqrn$interm_lvl}.
-#' @param interm_lvl Optional, checks that \code{interm_lvl == fit_eqrn$interm_lvl}.
-#' @param crop_predictions Whether to crop out the fist \code{seq_len} observations (which are \code{NA}) from the returned vector
-#' @param body_proba Value to use when the predicted conditional probability is below \code{interm_lvl}
+#' @param Y Response variable vector corresponding to the rows of `X`.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `fit_eqrn$interm_lvl`.
+#' @param interm_lvl Optional, checks that `interm_lvl == fit_eqrn$interm_lvl`.
+#' @param crop_predictions Whether to crop out the fist `seq_len` observations (which are `NA`) from the returned vector
+#' @param body_proba Value to use when the predicted conditional probability is below `interm_lvl`
 #' (in which case it cannot be precisely assessed by the model).
-#' If \code{"default"} is given (the default), \code{paste0(">",1-interm_lvl)} is used if \code{proba_type=="excess"},
-#' and \code{paste0("<",interm_lvl)} is used if \code{proba_type=="cdf"}.
-#' @param proba_type Whether to return the \code{"excess"} probability over \code{val} (default) or the \code{"cdf"} at \code{val}.
+#' If `"default"` is given (the default), `paste0(">",1-interm_lvl)` is used if `proba_type=="excess"`,
+#' and `paste0("<",interm_lvl)` is used if `proba_type=="cdf"`.
+#' @param proba_type Whether to return the `"excess"` probability over `val` (default) or the `"cdf"` at `val`.
 #' @param seq_len Data sequence length (i.e. number of past observations) used to predict each response quantile.
-#' By default, the training \code{fit_eqrn$seq_len} is used.
+#' By default, the training `fit_eqrn$seq_len` is used.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
-#' @return Vector of probabilities (and possibly a few \code{body_proba} values if \code{val} is not large enough) of length \code{nrow(X)}
-#' (or \code{nrow(X)-seq_len} if \code{crop_predictions}).
+#' @return Vector of probabilities (and possibly a few `body_proba` values if `val` is not large enough) of length `nrow(X)`
+#' (or `nrow(X)-seq_len` if `crop_predictions`).
 #' @export
 #'
-#' @examples
+#' @examples #TODO
 EQRN_excess_probability_seq <- function(val, fit_eqrn, X, Y, intermediate_quantiles, interm_lvl=fit_eqrn$interm_lvl,
                                         crop_predictions=FALSE, body_proba="default", proba_type=c("excess","cdf"),
-                                        seq_len=fit_eqrn$seq_len){
+                                        seq_len=fit_eqrn$seq_len, device=default_device()){
   
   proba_type <- match.arg(proba_type)
   
   GPD_params_pred <- EQRN_predict_params_seq(fit_eqrn, X, Y, intermediate_quantiles,
-                                             return_parametrization="classical", interm_lvl=interm_lvl, seq_len=seq_len)
+                                             return_parametrization="classical", interm_lvl=interm_lvl, seq_len=seq_len, device=device)
   sigmas <- GPD_params_pred$scales
   xis <- GPD_params_pred$shapes
   
@@ -388,22 +397,24 @@ EQRN_excess_probability_seq <- function(val, fit_eqrn, X, Y, intermediate_quanti
 
 #' Generalized Pareto likelihood loss of a EQRN_seq predictor
 #'
-#' @param fit_eqrn Fitted \code{"EQRN_seq"} object.
+#' @param fit_eqrn Fitted `"EQRN_seq"` object.
 #' @param X Matrix of covariates.
-#' @param Y Response variable vector corresponding to the rows of \code{X}.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{fit_eqrn$interm_lvl}.
-#' @param interm_lvl Optional, checks that \code{interm_lvl == fit_eqrn$interm_lvl}.
+#' @param Y Response variable vector corresponding to the rows of `X`.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `fit_eqrn$interm_lvl`.
+#' @param interm_lvl Optional, checks that `interm_lvl == fit_eqrn$interm_lvl`.
 #' @param seq_len Data sequence length (i.e. number of past observations) used to predict each response quantile.
-#' By default, the training \code{fit_eqrn$seq_len} is used.
+#' By default, the training `fit_eqrn$seq_len` is used.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
 #' @return Negative GPD log likelihood of the conditional EQRN predicted parameters
 #' over the response exceedances over the intermediate quantiles.
 #' @export
 #'
-#' @examples
-compute_EQRN_seq_GPDLoss <- function(fit_eqrn, X, Y, intermediate_quantiles=NULL, interm_lvl=fit_eqrn$interm_lvl, seq_len=fit_eqrn$seq_len){
+#' @examples #TODO
+compute_EQRN_seq_GPDLoss <- function(fit_eqrn, X, Y, intermediate_quantiles=NULL, interm_lvl=fit_eqrn$interm_lvl,
+                                     seq_len=fit_eqrn$seq_len, device=default_device()){
   params <- EQRN_predict_params_seq(fit_eqrn, X, Y, intermediate_quantiles=intermediate_quantiles, return_parametrization="classical",
-                                    interm_lvl=interm_lvl, seq_len=seq_len)
+                                    interm_lvl=interm_lvl, seq_len=seq_len, device=device)
   loss <- (1 + 1/params$shapes) * log(1 + params$shapes*c(Y)[(seq_len+1):length(Y)]/params$scales) + log(params$scales)
   loss <- mean(loss)
   return(loss)
@@ -412,15 +423,15 @@ compute_EQRN_seq_GPDLoss <- function(fit_eqrn, X, Y, intermediate_quantiles=NULL
 
 #' Instantiate an optimizer for training an EQRN_seq network
 #'
-#' @param network A \code{torch::nn_module} network to be trained in \code{\link{EQRN_fit_seq}}.
+#' @param network A `torch::nn_module` network to be trained in [EQRN_fit_seq()].
 #' @param learning_rate Initial learning rate for the optimizer during training of the neural network.
 #' @param L2_pen L2 weight penalty parameter for regularization during training.
-#' @param optim_met DEPRECATED. Optimization algorithm to use during training. \code{"adam"} is the default.
+#' @param optim_met DEPRECATED. Optimization algorithm to use during training. `"adam"` is the default.
 #'
-#' @return A \code{torch::optimizer} object used in \code{\link{EQRN_fit_seq}} for training.
-#' @export
+#' @return A `torch::optimizer` object used in [EQRN_fit_seq()] for training.
+#' @import torch
 #'
-#' @examples
+#' @examples #TODO
 setup_optimizer_seq <- function(network, learning_rate, L2_pen, optim_met="adam"){
   if(optim_met!="adam"){stop("Other optim methods are deprecated.")}
   
@@ -431,29 +442,41 @@ setup_optimizer_seq <- function(network, learning_rate, L2_pen, optim_met="adam"
 
 #' Dataset creator for sequential data
 #'
-#' @description A \code{torch::dataset} object that can be initialized with sequential data,
+#' @description A `torch::dataset` object that can be initialized with sequential data,
 #' used to feed a recurrent network during training or prediction.
-#' Is used in \code{\link{EQRN_fit_seq}} and corresponding predict functions,
-#' as well as in other recurrent methods such as \code{\link{QRN_seq_fit}} and its predict functions.
-#' Can perform scaling of the response's past as a covariate, and compute excesses as a response when used in \code{\link{EQRN_fit_seq}}.
+#' Is used in [EQRN_fit_seq()] and corresponding predict functions,
+#' as well as in other recurrent methods such as [QRN_seq_fit()] and its predict functions.
+#' Can perform scaling of the response's past as a covariate, and compute excesses as a response when used in [EQRN_fit_seq()].
 #' Also allows for fold separation or sequential discontinuity in the data.
-#' 
+#'
+#' @param X Matrix of covariates, for training. Entries must be in sequential order.
+#' @param Y Response variable vector to model the extreme conditional quantile of, for training. Entries must be in sequential order.
+#' @param seq_len Data sequence length (i.e. number of past observations) used during training to predict each response quantile.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `interm_lvl`.
+#' @param scale_Y Whether to rescale the response past, when considered as an input covariate,
+#' to zero mean and unit covariance before applying the network (recommended).
+#' @param fold_separation Fold separation index, when using concatenated folds as data.
+#' @param sample_frac Value between `0` and `1`. If `sample_frac < 1`, a subsample of the data is used. Defaults to `1`.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
+#'
 #' @export
-#' 
-#' @examples
+#' @import torch
+#' @importFrom stats sd
+#'
+#' @examples #TODO
 mts_dataset <- torch::dataset(
   name = "mts_dataset",
   
-  initialize = function(Y, X, seq_len, intermediate_quantiles=NULL, scale_Y=TRUE, fold_separation=NULL, sample_frac=1) {
+  initialize = function(Y, X, seq_len, intermediate_quantiles=NULL, scale_Y=TRUE, fold_separation=NULL, sample_frac=1, device=default_device()) {
     
     self$seq_len <- seq_len
     if(is.logical(scale_Y)){
-      scale_Y <- if(scale_Y) list(center=mean(Y), scale=sd(Y)) else list(center=0, scale=1)
+      scale_Y <- if(scale_Y) list(center=mean(Y), scale=stats::sd(Y)) else list(center=0, scale=1)
     }
     self$Y_scaling <- scale_Y
     Ys <- matrix(((Y-self$Y_scaling$center)/self$Y_scaling$scale), ncol=1)
-    self$input_seq <- torch_tensor(cbind(Ys,X), device = device)
-    self$response <- torch_tensor(matrix(Y, ncol=1), device = device)
+    self$input_seq <- torch::torch_tensor(cbind(Ys,X), device = device)
+    self$response <- torch::torch_tensor(matrix(Y, ncol=1), device = device)
     
     if(!is.null(intermediate_quantiles)){
       self$starts <- which(c(Y)>=c(intermediate_quantiles)) - self$seq_len
@@ -462,7 +485,7 @@ mts_dataset <- torch::dataset(
       }else{
         self$starts <- self$starts[self$starts>0]
       }
-      self$response <- self$response - torch_tensor(intermediate_quantiles)$reshape(list(-1,1))
+      self$response <- self$response - torch::torch_tensor(intermediate_quantiles)$reshape(list(-1,1))
     }else{
       n <- length(Y) - self$seq_len
       self$starts <- sort(sample.int(n = n, size = ceiling(n * sample_frac)))
@@ -489,7 +512,7 @@ mts_dataset <- torch::dataset(
   },
   
   .length = function() {
-    length(self$starts) 
+    length(self$starts)
   }
 )
 

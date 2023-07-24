@@ -1,35 +1,35 @@
 
 #' @title EQRN fit function for independent data
 #'
-#' @description Use the \code{\link{EQRN_fit_restart}} wrapper instead, with \code{data_type="iid"}, for better stability using fitting restart.
+#' @description Use the [EQRN_fit_restart()] wrapper instead, with `data_type="iid"`, for better stability using fitting restart.
 #'
 #' @param X Matrix of covariates, for training.
 #' @param y Response variable vector to model the extreme conditional quantile of, for training.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{interm_lvl}.
-#' @param interm_lvl Probability level for the intermediate quantiles \code{intermediate_quantiles}.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `interm_lvl`.
+#' @param interm_lvl Probability level for the intermediate quantiles `intermediate_quantiles`.
 #' @param shape_fixed Whether the shape estimate depends on the covariates or not (bool).
 #' @param net_structure Vector of integers whose length determines the number of layers in the neural network
 #' and entries the number of neurons in each corresponding successive layer.
-#' If \code{hidden_fct=="SSNN"}, should instead be a named list with \code{"scale"} and \code{"shape"} vectors for the two respective sub-networks.
-#' Can also be a \code{\link[torch]{torch::nn_module}} network with correct input and output dimensions,
-#' which overrides the \code{hidden_fct}, \code{shape_fixed} and \code{p_drop} arguments.
-#' @param hidden_fct Activation function for the hidden layers. Can be either a callable function (preferably from the \code{torch} library),
-#' or one of the the strings \code{"SNN"}, \code{"SSNN"} for self normalizing networks (with common or separated networks for the scale and shape estimates, respectively).
-#' In the latter cases, \code{shape_fixed} has no effect.
+#' If `hidden_fct=="SSNN"`, should instead be a named list with `"scale"` and `"shape"` vectors for the two respective sub-networks.
+#' Can also be a [`torch::nn_module`] network with correct input and output dimensions,
+#' which overrides the `hidden_fct`, `shape_fixed` and `p_drop` arguments.
+#' @param hidden_fct Activation function for the hidden layers. Can be either a callable function (preferably from the `torch` library),
+#' or one of the the strings `"SNN"`, `"SSNN"` for self normalizing networks (with common or separated networks for the scale and shape estimates, respectively).
+#' In the latter cases, `shape_fixed` has no effect.
 #' @param p_drop Probability parameter for dropout before each hidden layer for regularization during training.
-#' \code{alpha-dropout} is used with SNNs.
-#' @param intermediate_q_feature Whether to use the \code{intermediate_quantiles} as an additional covariate, by appending it to the \code{X} matrix (bool).
+#' `alpha-dropout` is used with SNNs.
+#' @param intermediate_q_feature Whether to use the `intermediate_quantiles` as an additional covariate, by appending it to the `X` matrix (bool).
 #' @param learning_rate Initial learning rate for the optimizer during training of the neural network.
 #' @param L2_pen L2 weight penalty parameter for regularization during training.
 #' @param shape_penalty Penalty parameter for the shape estimate, to potentially regularize its variation from the fixed prior estimate.
 #' @param scale_features Whether to rescale each input covariates to zero mean and unit variance before applying the network (recommended).
 #' @param n_epochs Number of training epochs.
 #' @param batch_size Batch size used during training.
-#' @param X_valid Covariates in a validation set, or \code{NULL}.
+#' @param X_valid Covariates in a validation set, or `NULL`.
 #' Used for monitoring validation loss during training, enabling learning-rate decay and early stopping.
-#' @param y_valid Response variable in a validation set, or \code{NULL}.
+#' @param y_valid Response variable in a validation set, or `NULL`.
 #' Used for monitoring validation loss during training, enabling learning-rate decay and early stopping.
-#' @param quant_valid Intermediate conditional quantiles at level \code{interm_lvl} in a validation set, or \code{NULL}.
+#' @param quant_valid Intermediate conditional quantiles at level `interm_lvl` in a validation set, or `NULL`.
 #' Used for monitoring validation loss during training, enabling learning-rate decay and early stopping.
 #' @param lr_decay Learning rate decay factor.
 #' @param patience_decay Number of epochs of non-improving validation loss before a learning-rate decay is performed.
@@ -37,41 +37,47 @@
 #' @param patience_stop Number of epochs of non-improving validation loss before early stopping is performed.
 #' @param tol Tolerance for stopping training, in case of no significant training loss improvements.
 #' @param orthogonal_gpd Whether to use the orthogonal reparametrization of the estimated GPD parameters (recommended).
-#' @param patience_lag The validation loss is considered to be non-improving if it is larger than on any of the previous \code{patience_lag} epochs.
-#' @param optim_met DEPRECATED. Optimization algorithm to use during training. \code{"adam"} is the default.
+#' @param patience_lag The validation loss is considered to be non-improving if it is larger than on any of the previous `patience_lag` epochs.
+#' @param optim_met DEPRECATED. Optimization algorithm to use during training. `"adam"` is the default.
+#' @param seed Integer random seed for reproducibility in network weight initialization.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
-#' @return An EQRN object of classes \code{c("EQRN_iid", "EQRN")}, containing the fitted network,
+#' @return An EQRN object of classes `c("EQRN_iid", "EQRN")`, containing the fitted network,
 #' as well as all the relevant information for its usage in other functions.
 #' @export
+#' @import torch
+#' @importFrom coro loop
 #'
-#' @examples
-EQRN_fit <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=FALSE, net_structure=c(5,3,3), hidden_fct=nnf_sigmoid, p_drop=0,
-                     intermediate_q_feature=TRUE, learning_rate=1e-4, L2_pen=0, shape_penalty=0, scale_features=TRUE, n_epochs=1e4, batch_size=256,
+#' @examples #TODO
+EQRN_fit <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=FALSE, net_structure=c(5,3,3), hidden_fct=torch::nnf_sigmoid, p_drop=0,
+                     intermediate_q_feature=TRUE, learning_rate=1e-4, L2_pen=0, shape_penalty=0, scale_features=TRUE, n_epochs=500, batch_size=256,
                      X_valid=NULL, y_valid=NULL, quant_valid=NULL, lr_decay=1, patience_decay=n_epochs, min_lr=0, patience_stop=n_epochs,
-                     tol=1e-6, orthogonal_gpd=TRUE, patience_lag=1, optim_met="adam"){
+                     tol=1e-6, orthogonal_gpd=TRUE, patience_lag=1, optim_met="adam", seed=NULL, device=default_device()){
+  
+  if(!is.null(seed)){torch::torch_manual_seed(seed)}
   
   data_excesses <- get_excesses(X=X, y=y, quantiles=intermediate_quantiles,
                                 intermediate_q_feature=intermediate_q_feature, scale_features=scale_features, X_scaling=NULL)
-  Y_excesses <- torch_tensor(data_excesses$Y_excesses, device = device)
-  X_feats_excesses <- torch_tensor(data_excesses$X_excesses, device = device)
+  Y_excesses <- torch::torch_tensor(data_excesses$Y_excesses, device = device)
+  X_feats_excesses <- torch::torch_tensor(data_excesses$X_excesses, device = device)
   X_scaling <- data_excesses$X_scaling
   
   # Data Loader
   n_train <- Y_excesses$size()[1]
-  trainset <- tensor_dataset(X_feats_excesses, Y_excesses)
-  trainloader <- dataloader(trainset, batch_size=batch_size, shuffle=TRUE)
+  trainset <- torch::tensor_dataset(X_feats_excesses, Y_excesses)
+  trainloader <- torch::dataloader(trainset, batch_size=batch_size, shuffle=TRUE)
   
   # Validation dataset (if everything needed is given)
   do_validation <- (!is.null(y_valid) & !is.null(X_valid) & !is.null(quant_valid))
   if(do_validation){
     data_valid_excesses <- get_excesses(X=X_valid, y=y_valid, quantiles=quant_valid,
                                         intermediate_q_feature=intermediate_q_feature, scale_features=scale_features, X_scaling=X_scaling)
-    y_valid_ex <- torch_tensor(data_valid_excesses$Y_excesses, device = device)
-    X_valid_ex <- torch_tensor(data_valid_excesses$X_excesses, device = device)
+    y_valid_ex <- torch::torch_tensor(data_valid_excesses$Y_excesses, device = device)
+    X_valid_ex <- torch::torch_tensor(data_valid_excesses$X_excesses, device = device)
     
     n_valid <- y_valid_ex$size()[1]
-    validset <- tensor_dataset(X_valid_ex, y_valid_ex)
-    validloader <- dataloader(validset, batch_size=batch_size, shuffle=FALSE)
+    validset <- torch::tensor_dataset(X_valid_ex, y_valid_ex)
+    validloader <- torch::dataloader(validset, batch_size=batch_size, shuffle=FALSE)
   }
   
   # Semi-conditional GPD fit (on y rescaled excesses wrt intermediate_quantiles)
@@ -157,11 +163,6 @@ EQRN_fit <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=FALSE
             nb_not_improving_val <- 0
             nb_not_improving_lr <- 0
           }
-          if(abs(loss_log_train[e]-loss_log_train[e-1])<tol){
-            nb_stable <- nb_stable + 1
-          } else {
-            nb_stable <- 0
-          }
         }
       }
       # Learning rate decay
@@ -176,8 +177,10 @@ EQRN_fit <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=FALSE
         break
       }
       network$train()
-    } else {
-      # If no validation
+    }
+    
+    # Tolerance stop
+    if(e>1){
       if(abs(loss_log_train[e]-loss_log_train[e-1])<tol){
         nb_stable <- nb_stable + 1
       } else {
@@ -213,31 +216,32 @@ EQRN_fit <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=FALSE
 
 #' Predict function for an EQRN_iid fitted object
 #'
-#' @param fit_eqrn Fitted \code{"EQRN_iid"} object.
+#' @param fit_eqrn Fitted `"EQRN_iid"` object.
 #' @param X Matrix of covariates to predict the corresponding response's conditional quantiles.
 #' @param quantiles_predict Vector of probability levels at which to predict the conditional quantiles.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{fit_eqrn$interm_lvl}.
-#' @param interm_lvl Optional, checks that \code{interm_lvl == fit_eqrn$interm_lvl}.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `fit_eqrn$interm_lvl`.
+#' @param interm_lvl Optional, checks that `interm_lvl == fit_eqrn$interm_lvl`.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
-#' @return Matrix of size \code{nrow(X)} times \code{quantiles_predict}
+#' @return Matrix of size `nrow(X)` times `quantiles_predict`
 #' containing the conditional quantile estimates of the response associated to each covariate observation at each probability level.
-#' Simplifies to a vector if \code{length(quantiles_predict)==1}.
+#' Simplifies to a vector if `length(quantiles_predict)==1`.
 #' @export
 #'
-#' @examples
-EQRN_predict <- function(fit_eqrn, X, quantiles_predict, intermediate_quantiles, interm_lvl=fit_eqrn$interm_lvl){
+#' @examples #TODO
+EQRN_predict <- function(fit_eqrn, X, quantiles_predict, intermediate_quantiles, interm_lvl=fit_eqrn$interm_lvl, device=default_device()){
   
   if(length(dim(quantiles_predict))>1){
     stop("Please provide a single value or 1D vector as quantiles_predict in EQRN_predict.")
   }
   
   if(length(quantiles_predict)==1){
-    return(EQRN_predict_internal(fit_eqrn, X, quantiles_predict, intermediate_quantiles, interm_lvl))
+    return(EQRN_predict_internal(fit_eqrn, X, quantiles_predict, intermediate_quantiles, interm_lvl, device=device))
   } else if(length(quantiles_predict)>1){
     nb_quantiles_predict <- length(quantiles_predict)
     predicted_quantiles <- matrix(as.double(NA), nrow=nrow(X), ncol=nb_quantiles_predict)
     for(i in 1:nb_quantiles_predict){
-      predicted_quantiles[,i] <- EQRN_predict_internal(fit_eqrn, X, quantiles_predict[i], intermediate_quantiles, interm_lvl)
+      predicted_quantiles[,i] <- EQRN_predict_internal(fit_eqrn, X, quantiles_predict[i], intermediate_quantiles, interm_lvl, device=device)
     }
     return(predicted_quantiles)
   } else {
@@ -247,20 +251,21 @@ EQRN_predict <- function(fit_eqrn, X, quantiles_predict, intermediate_quantiles,
 
 #' Internal predict function for an EQRN_iid
 #'
-#' @param fit_eqrn Fitted \code{"EQRN_iid"} object.
+#' @param fit_eqrn Fitted `"EQRN_iid"` object.
 #' @param X Matrix of covariates to predict the corresponding response's conditional quantiles.
 #' @param quantile_predict Probability level at which to predict the conditional quantiles.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{fit_eqrn$interm_lvl}.
-#' @param interm_lvl Optional, checks that \code{interm_lvl == fit_eqrn$interm_lvl}.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `fit_eqrn$interm_lvl`.
+#' @param interm_lvl Optional, checks that `interm_lvl == fit_eqrn$interm_lvl`.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
-#' @return Vector of length \code{nrow(X)} containing the conditional quantile estimates of the response associated to each covariate observation
-#' at each probability level \code{quantile_predict}.
+#' @return Vector of length `nrow(X)` containing the conditional quantile estimates of the response associated to each covariate observation
+#' at each probability level `quantile_predict`.
 #'
-#' @examples
-EQRN_predict_internal <- function(fit_eqrn, X, quantile_predict, intermediate_quantiles, interm_lvl){
+#' @examples #TODO
+EQRN_predict_internal <- function(fit_eqrn, X, quantile_predict, intermediate_quantiles, interm_lvl, device=default_device()){
   
   GPD_params_pred <- EQRN_predict_params(fit_eqrn, X, intermediate_quantiles,
-                                         return_parametrization="classical", interm_lvl)
+                                         return_parametrization="classical", interm_lvl, device=device)
   sigmas <- GPD_params_pred$scales
   xis <- GPD_params_pred$shapes
   
@@ -271,18 +276,21 @@ EQRN_predict_internal <- function(fit_eqrn, X, quantile_predict, intermediate_qu
 
 #' GPD parameters prediction function for an EQRN_iid fitted object
 #'
-#' @param fit_eqrn Fitted \code{"EQRN_iid"} object.
+#' @param fit_eqrn Fitted `"EQRN_iid"` object.
 #' @param X Matrix of covariates to predict conditional GPD parameters.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{fit_eqrn$interm_lvl}.
-#' @param return_parametrization Which parametrization to return the parameters in, either \code{"classical"} or \code{"orthogonal"}.
-#' @param interm_lvl Optional, checks that \code{interm_lvl == fit_eqrn$interm_lvl}.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `fit_eqrn$interm_lvl`.
+#' @param return_parametrization Which parametrization to return the parameters in, either `"classical"` or `"orthogonal"`.
+#' @param interm_lvl Optional, checks that `interm_lvl == fit_eqrn$interm_lvl`.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
-#' @return Named list containing: \code{"scales"} and \code{"shapes"} as numerical vectors of length \code{nrow(X)}.
+#' @return Named list containing: `"scales"` and `"shapes"` as numerical vectors of length `nrow(X)`.
 #' @export
+#' @import torch
+#' @importFrom coro loop
 #'
-#' @examples
+#' @examples #TODO
 EQRN_predict_params <- function(fit_eqrn, X, intermediate_quantiles=NULL, return_parametrization=c("classical","orthogonal"),
-                                interm_lvl=fit_eqrn$interm_lvl){
+                                interm_lvl=fit_eqrn$interm_lvl, device=default_device()){
   ## 'return_parametrization' controls the desired parametrization of the output parameters
   ## (works for both "orthogonal_gpd" EQRN parametrizations, by converting if needed)
   
@@ -292,10 +300,10 @@ EQRN_predict_params <- function(fit_eqrn, X, intermediate_quantiles=NULL, return
   
   X_feats <- process_features(X, intermediate_q_feature=fit_eqrn$intermediate_q_feature,
                               intermediate_quantiles=intermediate_quantiles, X_scaling=fit_eqrn$X_scaling)$X_scaled
-  X_feats <- torch_tensor(X_feats, device = device)
+  X_feats <- torch::torch_tensor(X_feats, device = device)
   
-  testset <- tensor_dataset(X_feats)
-  testloader <- dataloader(testset, batch_size=batch_size_default(testset), shuffle=FALSE)
+  testset <- torch::tensor_dataset(X_feats)
+  testloader <- torch::dataloader(testset, batch_size=batch_size_default(testset), shuffle=FALSE)
   
   network <- fit_eqrn$fit_nn
   network$eval()
@@ -325,27 +333,28 @@ EQRN_predict_params <- function(fit_eqrn, X, intermediate_quantiles=NULL, return
 #' Tail excess probability prediction using an EQRN_iid object
 #'
 #' @param val Quantile value(s) used to estimate the conditional excess probability or cdf.
-#' @param fit_eqrn Fitted \code{"EQRN_iid"} object.
+#' @param fit_eqrn Fitted `"EQRN_iid"` object.
 #' @param X Matrix of covariates to predict the corresponding response's conditional excess probabilities.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{fit_eqrn$interm_lvl}.
-#' @param interm_lvl Optional, checks that \code{interm_lvl == fit_eqrn$interm_lvl}.
-#' @param body_proba Value to use when the predicted conditional probability is below \code{interm_lvl}
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `fit_eqrn$interm_lvl`.
+#' @param interm_lvl Optional, checks that `interm_lvl == fit_eqrn$interm_lvl`.
+#' @param body_proba Value to use when the predicted conditional probability is below `interm_lvl`
 #' (in which case it cannot be precisely assessed by the model).
-#' If \code{"default"} is given (the default), \code{paste0(">",1-interm_lvl)} is used if \code{proba_type=="excess"},
-#' and \code{paste0("<",interm_lvl)} is used if \code{proba_type=="cdf"}.
-#' @param proba_type Whether to return the \code{"excess"} probability over \code{val} (default) or the \code{"cdf"} at \code{val}.
+#' If `"default"` is given (the default), `paste0(">",1-interm_lvl)` is used if `proba_type=="excess"`,
+#' and `paste0("<",interm_lvl)` is used if `proba_type=="cdf"`.
+#' @param proba_type Whether to return the `"excess"` probability over `val` (default) or the `"cdf"` at `val`.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
-#' @return Vector of probabilities (and possibly a few \code{body_proba} values if \code{val} is not large enough) of length \code{nrow(X)}.
+#' @return Vector of probabilities (and possibly a few `body_proba` values if `val` is not large enough) of length `nrow(X)`.
 #' @export
 #'
-#' @examples
+#' @examples #TODO
 EQRN_excess_probability <- function(val, fit_eqrn, X, intermediate_quantiles, interm_lvl=fit_eqrn$interm_lvl,
-                                    body_proba="default", proba_type=c("excess","cdf")){
+                                    body_proba="default", proba_type=c("excess","cdf"), device=default_device()){
   
   proba_type <- match.arg(proba_type)
   
   GPD_params_pred <- EQRN_predict_params(fit_eqrn, X, intermediate_quantiles,
-                                         return_parametrization="classical", interm_lvl)
+                                         return_parametrization="classical", interm_lvl, device=device)
   sigmas <- GPD_params_pred$scales
   xis <- GPD_params_pred$shapes
   
@@ -356,27 +365,30 @@ EQRN_excess_probability <- function(val, fit_eqrn, X, intermediate_quantiles, in
 
 #' Generalized Pareto likelihood loss of a EQRN_iid predictor
 #'
-#' @param fit_eqrn Fitted \code{"EQRN_iid"} object.
+#' @param fit_eqrn Fitted `"EQRN_iid"` object.
 #' @param X Matrix of covariates.
 #' @param y Response variable vector.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{fit_eqrn$interm_lvl}.
-#' @param interm_lvl Optional, checks that \code{interm_lvl == fit_eqrn$interm_lvl}.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `fit_eqrn$interm_lvl`.
+#' @param interm_lvl Optional, checks that `interm_lvl == fit_eqrn$interm_lvl`.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
 #' @return Negative GPD log likelihood of the conditional EQRN predicted parameters
 #' over the response exceedances over the intermediate quantiles.
 #' @export
+#' @import torch
+#' @importFrom coro loop
 #'
-#' @examples
-compute_EQRN_GPDLoss <- function(fit_eqrn, X, y, intermediate_quantiles=NULL, interm_lvl=fit_eqrn$interm_lvl){#TODO: internal_fct shared with train
+#' @examples #TODO
+compute_EQRN_GPDLoss <- function(fit_eqrn, X, y, intermediate_quantiles=NULL, interm_lvl=fit_eqrn$interm_lvl, device=default_device()){#TODO: internal_fct shared with train
   if(interm_lvl!=fit_eqrn$interm_lvl){stop("EQRN intermediate quantiles interm_lvl does not match in train and predict.")}
   data_valid_excesses <- get_excesses(X=X, y=y, quantiles=intermediate_quantiles, intermediate_q_feature=fit_eqrn$intermediate_q_feature,
                                       scale_features=fit_eqrn$X_scaling$scaling, X_scaling=fit_eqrn$X_scaling)
-  y_valid_ex <- torch_tensor(data_valid_excesses$Y_excesses, device = device)
-  X_valid_ex <- torch_tensor(data_valid_excesses$X_excesses, device = device)
+  y_valid_ex <- torch::torch_tensor(data_valid_excesses$Y_excesses, device = device)
+  X_valid_ex <- torch::torch_tensor(data_valid_excesses$X_excesses, device = device)
   
   n_valid <- y_valid_ex$size()[1]
-  validset <- tensor_dataset(X_valid_ex, y_valid_ex)
-  validloader <- dataloader(validset, batch_size=batch_size_default(validset), shuffle=FALSE)
+  validset <- torch::tensor_dataset(X_valid_ex, y_valid_ex)
+  validloader <- torch::dataloader(validset, batch_size=batch_size_default(validset), shuffle=FALSE)
   network <- fit_eqrn$fit_nn
   network$eval()
   loss_valid <- 0
@@ -396,19 +408,20 @@ compute_EQRN_GPDLoss <- function(fit_eqrn, X, y, intermediate_quantiles=NULL, in
 #' and entries the number of neurons in each corresponding successive layer.
 #' @param shape_fixed Whether the shape estimate depends on the covariates or not (bool).
 #' @param D_in Number of covariates (including the intermediate quantile feature if used).
-#' @param hidden_fct Activation function for the hidden layers. Can be either a callable function (preferably from the \code{torch} library),
-#' or one of the the strings \code{"SNN"}, \code{"SSNN"} for self normalizing networks (with common or separated networks for the scale and shape estimates, respectively).
-#' In the latter cases, \code{shape_fixed} has no effect.
+#' @param hidden_fct Activation function for the hidden layers. Can be either a callable function (preferably from the `torch` library),
+#' or one of the the strings `"SNN"`, `"SSNN"` for self normalizing networks (with common or separated networks for the scale and shape estimates, respectively).
+#' In the latter cases, `shape_fixed` has no effect.
 #' @param p_drop Probability parameter for dropout before each hidden layer for regularization during training.
-#' \code{alpha-dropout} is used with SNNs.
+#' `alpha-dropout` is used with SNNs.
 #' @param orthogonal_gpd Whether to use the orthogonal reparametrization of the estimated GPD parameters (recommended).
-#' @param device A torch device, by default \code{torch::torch_device("cpu")}.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
-#' @return A \code{torch::nn_module} network used to regress the GPD parameters in \code{\link{EQRN_fit}}.
+#' @return A `torch::nn_module` network used to regress the GPD parameters in [EQRN_fit()].
+#' @import torch
 #'
-#' @examples
+#' @examples #TODO
 instantiate_EQRN_network <- function(net_structure, shape_fixed, D_in, hidden_fct, p_drop=0,
-                                     orthogonal_gpd=TRUE, device=torch::torch_device("cpu")){
+                                     orthogonal_gpd=TRUE, device=default_device()){
   
   err_msg <- "Please give a valid activation function for 'hidden_fct' in EQRN or specify one of the character strings: 'SNN', 'SSNN'."
   
@@ -429,7 +442,7 @@ instantiate_EQRN_network <- function(net_structure, shape_fixed, D_in, hidden_fc
       
     } else if (is.function(hidden_fct)) {
       network <- FC_GPD_net(D_in=D_in, Hidden_vect=net_structure, activation=hidden_fct, p_drop=p_drop,
-                            shape_fixed=shape_fixed)
+                            shape_fixed=shape_fixed, device=device)
       
     } else {
       stop(err_msg)
@@ -442,18 +455,18 @@ instantiate_EQRN_network <- function(net_structure, shape_fixed, D_in, hidden_fc
 
 #' Instantiate an optimizer for training an EQRN_iid network
 #'
-#' @param network A \code{torch::nn_module} network to be trained in \code{\link{EQRN_fit}}.
+#' @param network A `torch::nn_module` network to be trained in [EQRN_fit()].
 #' @param learning_rate Initial learning rate for the optimizer during training of the neural network.
 #' @param L2_pen L2 weight penalty parameter for regularization during training.
-#' @param hidden_fct Activation function for the hidden layers. Can be either a callable function (preferably from the \code{torch} library),
-#' or one of the the strings \code{"SNN"}, \code{"SSNN"} for self normalizing networks (with common or separated networks for the scale and shape estimates, respectively).
+#' @param hidden_fct Activation function for the hidden layers. Can be either a callable function (preferably from the `torch` library),
+#' or one of the the strings `"SNN"`, `"SSNN"` for self normalizing networks (with common or separated networks for the scale and shape estimates, respectively).
 #' This will affect the default choice of optimizer.
-#' @param optim_met DEPRECATED. Optimization algorithm to use during training. \code{"adam"} is the default.
+#' @param optim_met DEPRECATED. Optimization algorithm to use during training. `"adam"` is the default.
 #'
-#' @return A \code{torch::optimizer} object used in \code{\link{EQRN_fit}} for training.
-#' @export
+#' @return A `torch::optimizer` object used in [EQRN_fit()] for training.
+#' @import torch
 #'
-#' @examples
+#' @examples #TODO
 setup_optimizer <- function(network, learning_rate, L2_pen, hidden_fct, optim_met="adam"){
   
   err_msg <- "Please give a valid activation function for 'hidden_fct' in EQRN or specify one of the character strings: 'SNN', 'SSNN'."
@@ -481,13 +494,13 @@ setup_optimizer <- function(network, learning_rate, L2_pen, hidden_fct, optim_me
 
 #' Performs a learning rate decay step on an optimizer
 #'
-#' @param optimizer A \code{torch::optimizer} object.
+#' @param optimizer A `torch::optimizer` object.
 #' @param decay_rate Learning rate decay factor.
 #'
-#' @return The \code{optimizer} with a decayed learning rate.
-#' @export
+#' @return The `optimizer` with a decayed learning rate.
+#' @import torch
 #'
-#' @examples
+#' @examples #TODO
 decay_learning_rate <- function(optimizer, decay_rate){
   for (i in seq_along(optimizer$param_groups)){
     optimizer$param_groups[[i]]$lr <- decay_rate * optimizer$param_groups[[i]]$lr
@@ -499,21 +512,24 @@ decay_learning_rate <- function(optimizer, decay_rate){
 #'
 #' @param X Matrix of covariates, for training.
 #' @param y Response variable vector to model the extreme conditional quantile of, for training.
-#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level \code{interm_lvl}.
-#' @param interm_lvl Probability level for the intermediate quantiles \code{intermediate_quantiles}.
+#' @param intermediate_quantiles Vector of intermediate conditional quantiles at level `interm_lvl`.
+#' @param interm_lvl Probability level for the intermediate quantiles `intermediate_quantiles`.
 #' @param number_fits Number of restarts.
-#' @param ... Other parameters given to either \code{\link{EQRN_fit}} or \code{\link{EQRN_fit_seq}}, depending on the \code{data_type}.
-#' @param data_type Type of data dependence, must be one of \code{"iid"} (for iid observations) or \code{"seq"} (for sequentially dependent observations).
+#' @param ... Other parameters given to either [EQRN_fit()] or [EQRN_fit_seq()], depending on the `data_type`.
+#' @param seed Integer random seed for reproducibility in network weight initialization.
+#' @param data_type Type of data dependence, must be one of `"iid"` (for iid observations) or `"seq"` (for sequentially dependent observations).
 #'
-#' @returnAn EQRN object of classes \code{c("EQRN_iid", "EQRN")} or \code{c("EQRN_seq", "EQRN")}, containing the fitted network,
+#' @return An EQRN object of classes `c("EQRN_iid", "EQRN")` or `c("EQRN_seq", "EQRN")`, containing the fitted network,
 #' as well as all the relevant information for its usage in other functions.
 #' @export
 #'
-#' @examples
-EQRN_fit_restart <- function(X, y, intermediate_quantiles, interm_lvl, number_fits=3, ..., data_type=c("iid","seq")){#TODO: force_trainloss_select arg
+#' @examples #TODO
+EQRN_fit_restart <- function(X, y, intermediate_quantiles, interm_lvl, number_fits=3, ..., seed=NULL, data_type=c("iid","seq")){#TODO: force_trainloss_select arg
   #
   data_type <- match.arg(data_type)
   if(number_fits<1){stop("'number_fits' must be at least 1 in 'EQRN_fit_restart'.")}
+  
+  if(!is.null(seed)){torch::torch_manual_seed(seed)}
   
   if(data_type=="seq"){
     fit_fct <- EQRN_fit_seq
@@ -571,19 +587,21 @@ EQRN_fit_restart <- function(X, y, intermediate_quantiles, interm_lvl, number_fi
 }
 
 #' Save an EQRN object on disc
-#' 
-#' @description Creates a folder named \code{name} and located in \code{path}, containing binary save files,
-#' so that the given \code{"EQRN"} object \code{fit_eqrn} can be loaded back in memory from disc using \code{\link{EQRN_load}}.
 #'
-#' @param fit_eqrn An \code{"EQRN"} object
+#' @description Creates a folder named `name` and located in `path`, containing binary save files,
+#' so that the given `"EQRN"` object `fit_eqrn` can be loaded back in memory from disc using [EQRN_load()].
+#'
+#' @param fit_eqrn An `"EQRN"` object
 #' @param path Path to save folder as a string.
 #' @param name String name of the save.
 #' @param no_warning Whether to silence the warning raised if a save folder needed beeing created (bool).
 #'
 #' @return Nothing
 #' @export
+#' @import torch
+#' @importFrom utils packageVersion
 #'
-#' @examples
+#' @examples #TODO
 EQRN_save <- function(fit_eqrn, path, name=NULL, no_warning=TRUE){
   if(is.null(name)){
     name <- paste0("EQRN_fit_", format(Sys.time(),'%Y%m%d_%H%M%S'))
@@ -594,28 +612,31 @@ EQRN_save <- function(fit_eqrn, path, name=NULL, no_warning=TRUE){
   fpath <- paste0(path, name, "/")
   check_directory(fpath, recursive=TRUE, no_warning=no_warning)
   
-  torch_save(fit_eqrn$fit_nn, paste0(fpath, "fit_eqrnn_network.pt"))
+  torch::torch_save(fit_eqrn$fit_nn, paste0(fpath, "fit_eqrnn_network.pt"))
   fit_infos <- fit_eqrn[names(fit_eqrn)!="fit_nn"]
   if(is.null(fit_infos$torch_version)){
-    fit_infos$torch_version <- packageVersion("torch")
+    fit_infos$torch_version <- utils::packageVersion("torch")
   }
   safe_save_rds(fit_infos, paste0(fpath, "fit_eqrnn_infos.rds"))
 }
 
 #' Load an EQRN object from disc
-#' 
-#' @description Loads in memory an \code{"EQRN"} object that has previously been saved on disc using \code{\link{EQRN_save}}.
+#'
+#' @description Loads in memory an `"EQRN"` object that has previously been saved on disc using [EQRN_save()].
 #'
 #' @param path Path to the save location as a string.
 #' @param name String name of the save.
-#' If \code{NULL} (default), assumes the save name has been given implicitly in the \code{path}.
+#' If `NULL` (default), assumes the save name has been given implicitly in the `path`.
+#' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #' @param ... DEPRECATED. Used for back-compatibility.
 #'
-#' @return The loaded \code{"EQRN"} model.
+#' @return The loaded `"EQRN"` model.
 #' @export
+#' @import torch
+#' @importFrom utils packageVersion
 #'
-#' @examples
-EQRN_load <- function(path, name=NULL, ...){
+#' @examples #TODO
+EQRN_load <- function(path, name=NULL, device=default_device(), ...){
   if(substr(path, nchar(path), nchar(path)) != "/"){
     fpath <- paste0(path, "/")
   } else {
@@ -625,10 +646,10 @@ EQRN_load <- function(path, name=NULL, ...){
     fpath <- paste0(fpath, name, "/")
   }
   
-  network <- torch_load(paste0(fpath, "fit_eqrnn_network.pt"), device=device)
+  network <- torch::torch_load(paste0(fpath, "fit_eqrnn_network.pt"), device=device)
   fit_infos <- readRDS(paste0(fpath, "fit_eqrnn_infos.rds"))
   
-  current_version <- packageVersion("torch")
+  current_version <- utils::packageVersion("torch")
   if(fit_infos$torch_version != current_version){
     warning(paste0("EQRN object was saved with torch ", fit_infos$torch_version,
                    "but loaded with torch ", current_version))
@@ -646,17 +667,18 @@ EQRN_load <- function(path, name=NULL, ...){
 #' @param y Batch tensor of corresponding response variable.
 #' @param orthogonal_gpd Whether the network is supposed to regress in the orthogonal reparametrization of the GPD parameters (recommended).
 #' @param shape_penalty Penalty parameter for the shape estimate, to potentially regularize its variation from the fixed prior estimate.
-#' @param prior_shape Prior estimate for the shape, used only if \code{shape_penalty>0}.
-#' @param return_agg The return aggregation of the computed loss over the batch. Must be one of \code{"mean", "sum", "vector", "nanmean", "nansum"}.
+#' @param prior_shape Prior estimate for the shape, used only if `shape_penalty>0`.
+#' @param return_agg The return aggregation of the computed loss over the batch. Must be one of `"mean", "sum", "vector", "nanmean", "nansum"`.
 #'
-#' @return The GPD loss over the batch between the network output ans the observed responses as a \code{torch::Tensor},
-#' whose dimensions depend on \code{return_agg}.
+#' @return The GPD loss over the batch between the network output ans the observed responses as a `torch::Tensor`,
+#' whose dimensions depend on `return_agg`.
 #' @export
+#' @import torch
 #'
-#' @examples
+#' @examples #TODO
 loss_GPD_tensor <- function(out, y, orthogonal_gpd=TRUE, shape_penalty=0, prior_shape=NULL, return_agg=c("mean", "sum", "vector", "nanmean", "nansum")){
   return_agg <- match.arg(return_agg)
-  s <- torch_split(out, 1, dim = 2)
+  s <- torch::torch_split(out, 1, dim = 2)
   if(orthogonal_gpd){
     l <- (1 + 1/s[[2]]) * (1 + s[[2]]*(s[[2]]+1)*y/s[[1]])$log() + s[[1]]$log() - (s[[2]]+1)$log()
   }else{
@@ -683,30 +705,32 @@ loss_GPD_tensor <- function(out, y, orthogonal_gpd=TRUE, shape_penalty=0, prior_
 
 #' Computes rescaled excesses over the conditional quantiles
 #'
-#' @param X A covariate matrix. Can be \code{NULL} if there are no covariates.
+#' @param X A covariate matrix. Can be `NULL` if there are no covariates.
 #' @param y The response variable vector.
-#' @param quantiles The intermediate quantiles over which to compute the excesses of \code{y}.
-#' @param intermediate_q_feature Whether to use the intermediate \code{quantiles} as an additional covariate,
-#' by appending it to the \code{X} matrix (bool).
+#' @param quantiles The intermediate quantiles over which to compute the excesses of `y`.
+#' @param intermediate_q_feature Whether to use the intermediate `quantiles` as an additional covariate,
+#' by appending it to the `X` matrix (bool).
 #' @param scale_features Whether to rescale each input covariates to zero mean and unit variance before applying the network (recommended).
-#' If \code{X_scaling} is given, \code{X_scaling$scaling} overrides \code{scale_features}.
-#' @param X_scaling Existing \code{"X_scaling"} object containing the precomputed mean and variance for each covariate.
+#' If `X_scaling` is given, `X_scaling$scaling` overrides `scale_features`.
+#' @param X_scaling Existing `"X_scaling"` object containing the precomputed mean and variance for each covariate.
 #' This enables reusing the scaling choice and parameters from the train set, if computing the excesses on a validation or test set,
-#' in order to avoid overfitting. This is performed automatically in the \code{"EQRN"} objects.
+#' in order to avoid overfitting. This is performed automatically in the `"EQRN"` objects.
 #'
-#' @return Named list containing: 
+#' @return Named list containing:
+#' \itemize{
 #' \item{Y_excesses}{thematrix of response excesses,}
 #' \item{X_excesses}{the (possibly rescaled and q_feat transformed) covariate matrix,}
-#' \item{X_scaling}{object of class \code{"X_scaling"} to use for consistent scaling on future datasets,}
+#' \item{X_scaling}{object of class `"X_scaling"` to use for consistent scaling on future datasets,}
 #' \item{excesses_ratio}{and the ratio of escesses for troubleshooting.}
+#' }
 #' @export
 #'
-#' @examples
+#' @examples #TODO
 get_excesses <- function(X=NULL, y, quantiles, intermediate_q_feature=FALSE, scale_features=FALSE, X_scaling=NULL){
   # Preprocess y
   y_rescaled <- y - quantiles
   y_excesses <- y_rescaled[y_rescaled>=0]
-  Y_excesses = matrix(y_excesses, nrow=length(y_excesses), ncol=1)
+  Y_excesses <- matrix(y_excesses, nrow=length(y_excesses), ncol=1)
   
   if(is.null(X)){
     X_feats_excesses <- NULL
@@ -732,21 +756,23 @@ get_excesses <- function(X=NULL, y, quantiles, intermediate_q_feature=FALSE, sca
 #' Feature processor for EQRN
 #'
 #' @param X A covariate matrix.
-#' @param intermediate_q_feature Whether to use the intermediate \code{quantiles} as an additional covariate,
-#' by appending it to the \code{X} matrix (bool).
+#' @param intermediate_q_feature Whether to use the intermediate `quantiles` as an additional covariate,
+#' by appending it to the `X` matrix (bool).
 #' @param intermediate_quantiles The intermediate conditional quantiles.
-#' @param X_scaling Existing \code{"X_scaling"} object containing the precomputed mean and variance for each covariate.
+#' @param X_scaling Existing `"X_scaling"` object containing the precomputed mean and variance for each covariate.
 #' This enables reusing the scaling choice and parameters from the train set, if computing the excesses on a validation or test set,
-#' in order to avoid overfitting. This is performed automatically in the \code{"EQRN"} objects.
+#' in order to avoid overfitting. This is performed automatically in the `"EQRN"` objects.
 #' @param scale_features Whether to rescale each input covariates to zero mean and unit variance before applying the network (recommended).
-#' If \code{X_scaling} is given, \code{X_scaling$scaling} overrides \code{scale_features}.
+#' If `X_scaling` is given, `X_scaling$scaling` overrides `scale_features`.
 #'
-#' @return Named list containing: 
+#' @return Named list containing:
+#' \itemize{
 #' \item{X_excesses}{the (possibly rescaled and q_feat transformed) covariate matrix,}
-#' \item{X_scaling}{object of class \code{"X_scaling"} to use for consistent scaling on future datasets.}
+#' \item{X_scaling}{object of class `"X_scaling"` to use for consistent scaling on future datasets.}
+#' }
 #' @export
 #'
-#' @examples
+#' @examples #TODO
 process_features <- function(X, intermediate_q_feature, intermediate_quantiles=NULL, X_scaling=NULL, scale_features=TRUE){
   X_feats <- vec2mat(X) #verify X is matrix (otherwise transform it to 1-row matrix)
   if(intermediate_q_feature){
@@ -757,22 +783,24 @@ process_features <- function(X, intermediate_q_feature, intermediate_quantiles=N
   return(X_feats_structure)
 }
 
-#' Performs feature scaling without overfitting 
+#' Performs feature scaling without overfitting
 #'
 #' @param X A covariate matrix.
-#' @param X_scaling Existing \code{"X_scaling"} object containing the precomputed mean and variance for each covariate.
+#' @param X_scaling Existing `"X_scaling"` object containing the precomputed mean and variance for each covariate.
 #' This enables reusing the scaling choice and parameters from the train set, if computing the excesses on a validation or test set,
-#' in order to avoid overfitting. This is performed automatically in the \code{"EQRN"} objects.
+#' in order to avoid overfitting. This is performed automatically in the `"EQRN"` objects.
 #' @param scale_features Whether to rescale each input covariates to zero mean and unit variance before applying the model (recommended).
-#' If \code{X_scaling} is given, \code{X_scaling$scaling} overrides \code{scale_features}.
+#' If `X_scaling` is given, `X_scaling$scaling` overrides `scale_features`.
 #' @param stat_attr DEPRECATED. Whether to keep attributes in the returned covariate matrix itself.
 #'
-#' @return Named list containing: 
+#' @return Named list containing:
+#' \itemize{
 #' \item{X_excesses}{the (possibly rescaled and q_feat transformed) covariate matrix,}
-#' \item{X_scaling}{object of class \code{"X_scaling"} to use for consistent scaling on future datasets.}
+#' \item{X_scaling}{object of class `"X_scaling"` to use for consistent scaling on future datasets.}
+#' }
 #' @export
 #'
-#' @examples
+#' @examples #TODO
 perform_scaling <- function(X, X_scaling=NULL, scale_features=TRUE, stat_attr=FALSE){
   
   if(is.null(X_scaling)){
@@ -806,14 +834,53 @@ perform_scaling <- function(X, X_scaling=NULL, scale_features=TRUE, stat_attr=FA
 }
 
 
+#' Default torch device
+#'
+#' @return Returns `torch::torch_device("cuda")` if `torch::cuda_is_available()`, or `torch::torch_device("cpu")` otherwise.
+#' @export
+#' @import torch
+#'
+#' @examples device <- default_device()
+default_device <- function(){
+  if(torch::cuda_is_available()) {
+    device <- torch::torch_device("cuda")
+  } else {
+    device <- torch::torch_device("cpu")
+  }
+  return(device)
+}
+
+#' Default batch size (internal)
+#'
+#' @param tensor_dat A [torch::dataset()].
+#' @param batch_size An initial batch size, by default `256`.
+#'
+#' @return The fixed batch_size.
+#'
+#' @examples #TODO
+batch_size_default <- function(tensor_dat, batch_size=256){
+  n <- length(tensor_dat)
+  if(n==1){
+    return(1)
+  }
+  batch_size <- min(batch_size, n)
+  while(n%%batch_size == 1){
+    # as torch::dataloader simplified dimensions due to a bug.
+    # TODO: remove when fixed in torch!
+    batch_size <- batch_size+1
+  }
+  return(batch_size)
+}
+
+
 #' Internal renaming function for back-compatibility
 #'
 #' @param eqrn_fit EQRN fitted object.
-#' @param classes If provided, overrides classes of \code{eqrn_fit}.
+#' @param classes If provided, overrides classes of `eqrn_fit`.
 #'
-#' @return
+#' @return The `eqrn_fit` object with updated attribute names and classes.
 #'
-#' @examples
+#' @examples #TODO
 legacy_names <- function(eqrn_fit, classes=NULL){
   if(is.null(eqrn_fit$interm_lvl)){
     eqrn_fit$interm_lvl <- eqrn_fit$threshold
@@ -824,38 +891,17 @@ legacy_names <- function(eqrn_fit, classes=NULL){
   return(eqrn_fit)
 }
 
-#' Default batch size (internal)
-#' 
-#' @param tensor_dat A \code{\link{torch::dataset}}.
-#' @param batch_size An initial batch size, by default \code{256}.
-#'
-#' @return The fixed batch_size.
-#'
-#' @examples
-batch_size_default <- function(tensor_dat, batch_size=256){
-  n <- length(tensor_dat)
-  if(n==1){
-    return(1)
-  }
-  batch_size <- min(batch_size, n)
-  while(n%%batch_size == 1){
-    # as torch::dataloader simplified dimensions due to a bug.
-    # TODO: remove when fixed in torch! 
-    batch_size <- batch_size+1
-  }
-  return(batch_size)
-}
-
 #' (INTERNAL) Corrects a dimension simplification bug from the torch package
-#' 
-#' @description (INTERNAL) Issue was raised to the \code{\link{torch}} maintainers and should be fixed, deprecating this function.
 #'
-#' @param dl_i batch object from an itteration over a `torch::dataloader`.
+#' @description (INTERNAL) Issue was raised to the `torch` maintainers and should be fixed, deprecating this function.
+#'
+#' @param dl_i batch object from an itteration over a [torch::dataloader()].
 #' @param ... dimension(s) of the covariate object (excluding the first "batch" dimension)
+#' @param responses Bolean indicating whether the batch object `dl_i` is a covariates-response pair.
 #'
 #' @return The fixed dl_i object
 #'
-#' @examples
+#' @examples #TODO
 fix_dimsimplif <- function(dl_i, ..., responses=TRUE){
   dl_i[[1]] <- dl_i[[1]]$reshape(c(-1, ...))
   if(responses){

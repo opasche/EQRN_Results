@@ -16,3 +16,8 @@ On the other hand, this current repository `EQRN_Results` provides the implement
 	- the scripts for the competitor and other models in `main/other_models/`.
 - The `Results/` folder contains all the results from every script in `main/` including saved figures and tables.
 
+
+By Olivier Colin PASCHE\
+Research Center for Statistics, University of Geneva (CH), 2022.\
+Supported by the Swiss National Science Foundation.
+

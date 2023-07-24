@@ -1,16 +1,16 @@
 
 #' Check directory existence
-#' 
+#'
 #' @description Checks if the desired directory exists. If not, the desired directory is created.
 #'
 #' @param dir_name Path to the desired directory, as a string.
-#' @param recursive Should elements of the path other than the last be created? 
-#' If \code{TRUE}, behaves like the Unix command \code{mkdir -p}.
+#' @param recursive Should elements of the path other than the last be created?
+#' If `TRUE`, behaves like the Unix command `mkdir -p`.
 #' @param no_warning Whether to cancel the warning issued if a directory is created (bool).
-#' 
+#'
 #' @export
 #'
-#' @examples
+#' @examples \dontrun{check_directory("./results/my_new_folder")}
 check_directory <- function(dir_name, recursive=TRUE, no_warning=FALSE){
   if (!dir.exists(dir_name)){
     dir.create(dir_name, recursive=recursive)
@@ -21,19 +21,19 @@ check_directory <- function(dir_name, recursive=TRUE, no_warning=FALSE){
 }
 
 #' Safe RDS save
-#' 
-#' @description Safe version of \code{\link{saveRDS}}. 
-#' If the given save path (i.e. \code{dirname(file_path)}) does not exist, it is created instead of raising an error.
+#'
+#' @description Safe version of [saveRDS()].
+#' If the given save path (i.e. `dirname(file_path)`) does not exist, it is created instead of raising an error.
 #'
 #' @param object R variable or object to save on disk.
 #' @param file_path Path and name of the save file, as a string.
-#' @param recursive Should elements of the path other than the last be created? 
-#' If \code{TRUE}, behaves like the Unix command \code{mkdir -p}.
+#' @param recursive Should elements of the path other than the last be created?
+#' If `TRUE`, behaves like the Unix command `mkdir -p`.
 #' @param no_warning Whether to cancel the warning issued if a directory is created (bool).
 #'
 #' @export
 #'
-#' @examples
+#' @examples \dontrun{safe_save_rds(c(1, 2, 8), "./results/my_new_folder/my_vector.rds")}
 safe_save_rds <- function(object, file_path, recursive=TRUE, no_warning=FALSE){
   dir_name <- dirname(file_path)
   check_directory(dir_name, recursive=recursive, no_warning=no_warning)
@@ -45,32 +45,32 @@ safe_save_rds <- function(object, file_path, recursive=TRUE, no_warning=FALSE){
 #' Last element of a vector
 #'
 #' @param x Vector.
-#' 
+#'
 #' @description Returns the last element of the given vector in the most efficient way.
 #'
-#' @return The last element in the vector \code{x}.
-#' 
-#' @details The last element is obtained using code{x[length(x)]}, which is done in \code{O(1)} and faster than, for example, any of
-#' \code{Rcpp::mylast(x)}, \code{tail(x, n=1)}, \code{dplyr::last(x)}, \code{x[end(x)[1]]]}, and \code{rev(x)[1]}.
+#' @return The last element in the vector `x`.
+#'
+#' @details The last element is obtained using `x[length(x)]`, which is done in `O(1)` and faster than, for example, any of
+#' `Rcpp::mylast(x)`, `tail(x, n=1)`, `dplyr::last(x)`, `x[end(x)[1]]]`, and `rev(x)[1]`.
 #' @export
 #'
-#' @examples
+#' @examples last_elem(c(2, 6, 1, 4))
 last_elem <- function(x){
   x[length(x)]
 }
 
 #' Mathematical number rounding
-#' 
-#' @description This function rounds numbers in the mathematical sense, 
-#' as opposed to the base \code{R} function \code{\link{round}} that rounds 'to the even digit'.
+#'
+#' @description This function rounds numbers in the mathematical sense,
+#' as opposed to the base `R` function [round()] that rounds 'to the even digit'.
 #'
 #' @param x Vector of numerical values to round.
 #' @param decimals Integer indicating the number of decimal places to be used.
 #'
-#' @return A vector containing the entries of \code{x}, rounded to \code{decimals} decimals.
+#' @return A vector containing the entries of `x`, rounded to `decimals` decimals.
 #' @export
 #'
-#' @examples
+#' @examples roundm(2.25, 1)
 roundm = function(x, decimals=0){
   posneg <- sign(x)
   z <- abs(x)*10^decimals
@@ -83,14 +83,14 @@ roundm = function(x, decimals=0){
 #' Convert a vector to a matrix
 #'
 #' @param v Vector.
-#' @param axis One of \code{"col"} (default) or \code{"row"}.
+#' @param axis One of `"col"` (default) or `"row"`.
 #'
-#' @return The vector \code{v} as a matrix. 
-#' If \code{axis=="col"} (default) the column vector \code{v} is returned as a \code{length(v)} times \code{1} matrix. 
-#' If \code{axis=="row"}, the vector \code{v} is returned as a transposed \code{1} times \code{length(v)} matrix.
+#' @return The vector `v` as a matrix.
+#' If `axis=="col"` (default) the column vector `v` is returned as a `length(v)` times `1` matrix.
+#' If `axis=="row"`, the vector `v` is returned as a transposed `1` times `length(v)` matrix.
 #' @export
 #'
-#' @examples
+#' @examples vec2mat(c(2, 7, 3, 8), "col")
 vec2mat <- function(v, axis=c("col","row")){
   axis <- match.arg(axis)
   if (is.null(dim(v))) {
@@ -101,31 +101,34 @@ vec2mat <- function(v, axis=c("col","row")){
 
 #' Tibble replicatior
 #'
-#' @param tbl A tibble::tibble.
+#' @param tbl A [tibble::tibble()].
 #' @param m An integer.
 #'
-#' @return The tibble is replicated \code{m} times and colums names appended with \code{rep_id = 1:m}.
+#' @return The tibble is replicated `m` times and colums names appended with `rep_id = 1:m`.
+#' @importFrom magrittr %>%
+#' @importFrom tibble rownames_to_column
+#' @importFrom tidyr expand_grid
+#' @importFrom dplyr left_join select
 #'
-#' @examples
+#' @examples #rep_tibble(tibble::tibble(a=c(2,3), b=c(5,6)), 3)
 rep_tibble <- function(tbl, m){
   tbl <-  tbl %>% tibble::rownames_to_column()
   
-  tidyr::expand_grid(rep_id = 1:m, rowname = tbl$rowname) %>% 
-    left_join(tbl, by = "rowname") %>% 
-    select(-rowname)
+  tidyr::expand_grid(rep_id = 1:m, rowname = tbl$rowname) %>%
+    dplyr::left_join(tbl, by = "rowname") %>%
+    dplyr::select(-rowname)
 }
 
 #' Replicated vector to matrix
 #'
 #' @param vec Vector.
 #' @param nrep Number of repetitions.
-#' @param dim One of \code{"row"} (default) or \code{"col"}.
+#' @param dim One of `"row"` (default) or `"col"`.
 #'
 #' @return Matrix of replicated vector.
 #'
-#' @examples
+#' @examples #rep_vector2matrix(c(2, 7, 3, 8), 3, "row")
 rep_vector2matrix <- function(vec, nrep, dim = c("row", "col")){
-  ## vector integer character -> matrix
   ## stack nrep of vec in (row|col) of a matrix
   
   dim <- match.arg(dim)
@@ -145,17 +148,17 @@ rep_vector2matrix <- function(vec, nrep, dim = c("row", "col")){
 #' Convert a list to a matrix
 #'
 #' @param lst A list.
-#' @param dim One of \code{"row"} (default) or \code{"col"}.
+#' @param dim One of `"row"` (default) or `"col"`.
 #'
-#' @return The list converted to a matrix, by stacking the elements of \code{lst} in the rows or columns of a matrix.
+#' @return The list converted to a matrix, by stacking the elements of `lst` in the rows or columns of a matrix.
 #'
-#' @examples
+#' @examples #list2matrix(list(2, 7, 3, 8), "row")
 list2matrix <- function(lst, dim = c("row", "col")){
   dim <- match.arg(dim)
   l <- length(lst)
   
   if (l == 0){
-    stop("lst must contain at least one element.")
+    stop("'lst' must contain at least one element.")
   }
   
   if (dim == "col"){
@@ -169,9 +172,9 @@ list2matrix <- function(lst, dim = c("row", "col")){
 #'
 #' @param mat A matrix.
 #'
-#' @return A list with elements corresponding to rows of \code{mat}.
+#' @return A list with elements corresponding to rows of `mat`.
 #'
-#' @examples
+#' @examples #matrix2list(matrix(c(1, 2, 3, 4, 5, 6), ncol=2))
 matrix2list <- function(mat){
   split(mat, rep(1:nrow(mat), times = ncol(mat)))
 }
@@ -181,10 +184,10 @@ matrix2list <- function(mat){
 #' @param X Covariate matrix.
 #' @param n Number of observations.
 #' @param p Number of covariates.
-#' 
+#'
 #' @return Returns TRUE if X is a matrix with dimension n * p. Otherwise an error is raised.
 #'
-#' @examples
+#' @examples #check_X_matrix(matrix(c(1, 2, 3, 4, 5, 6), ncol=2), n=3, p=2)
 check_X_matrix <- function(X, n, p){
   cond_1 <- is.matrix(X)
   
@@ -203,18 +206,18 @@ check_X_matrix <- function(X, n, p){
 }
 
 #' Create cross-validation folds
-#' 
-#' @description Utility function to create folds of data, used in cross-validation proceidures. 
-#' The implementation is from the \code{gbex} \code{R} package
+#'
+#' @description Utility function to create folds of data, used in cross-validation proceidures.
+#' The implementation is from the `gbex` `R` package
 #'
 #' @param y Numerical vector of observations
 #' @param num_folds Number of folds to create.
-#' @param stratified Logical value. If \code{TRUE}, the folds are stratified along \code{rank(y)}.
+#' @param stratified Logical value. If `TRUE`, the folds are stratified along `rank(y)`.
 #'
 #' @return Vector of indices of the assigned folds for each observation.
 #' @export
 #'
-#' @examples
+#' @examples make_folds(rnorm(30), 5)
 make_folds <- function(y, num_folds, stratified=FALSE){
   n = length(y)
   if(stratified) {
@@ -225,7 +228,7 @@ make_folds <- function(y, num_folds, stratified=FALSE){
     folds <- folds_vector[rank(-y)]
   } else {
     index_shuffled = sample(1:n)
-    folds = cut(seq(1, length(index_shuffled)), breaks = num_folds, 
+    folds = cut(seq(1, length(index_shuffled)), breaks = num_folds,
                 labels = F)[order(index_shuffled)]
   }
   return(folds)
@@ -237,12 +240,15 @@ make_folds <- function(y, num_folds, stratified=FALSE){
 #' @param max_lag Integer giving the maximum lag (i.e. the number of temporal dependence steps).
 #' @param drop_present Whether to drop the "present" features (bool).
 #'
-#' @return Matrix with the original columns replicated, and shifted by \code{1:max_lag} if \code{drop_present==TRUE} (default) 
-#' or by \code{0:max_lag} if \code{drop_present==FALSE}.
+#' @return Matrix with the original columns replicated, and shifted by `1:max_lag` if `drop_present==TRUE` (default)
+#' or by `0:max_lag` if `drop_present==FALSE`.
 #' @export
 #'
-#' @examples
+#' @examples lagged_features(matrix(seq(20), ncol=2), max_lag=3, drop_present=TRUE)
 lagged_features <- function(X, max_lag, drop_present=TRUE){
+  if(max_lag>=nrow(X)){
+    stop("The 'max_lag' should be smaller than 'nrow(X)' in 'lagged_features'.")
+  }
   n <- nrow(X)
   p <- ncol(X)
   Xl <- matrix(as.double(NA), nrow=n-max_lag, ncol=p*(max_lag+1))
@@ -259,14 +265,14 @@ lagged_features <- function(X, max_lag, drop_present=TRUE){
 #'
 #' @param vect A 1-D vector.
 #' @param val A value to insert in the vector.
-#' @param ind The index at which to insert the value in the vector, 
-#' must be an integer between \code{1} and \code{length(vect) + 1}.
+#' @param ind The index at which to insert the value in the vector,
+#' must be an integer between `1` and `length(vect) + 1`.
 #'
-#' @return A 1-D vector of length \code{length(vect) + 1}, 
-#' with \code{val} inserted at position \code{ind} in the original \code{vect}.
+#' @return A 1-D vector of length `length(vect) + 1`,
+#' with `val` inserted at position `ind` in the original `vect`.
 #' @export
 #'
-#' @examples
+#' @examples vector_insert(c(2, 7, 3, 8), val=5, ind=3)
 vector_insert <- function(vect, val, ind){
   n <- length(vect)
   if(ind<1 | ind>(n+1)){
@@ -286,41 +292,47 @@ vector_insert <- function(vect, val, ind){
 
 #' Get doFuture operator
 #'
-#' @param strategy One of \code{"sequential"} (default), \code{"multisession"}, \code{"multicore"}, or \code{"mixed"}.
+#' @param strategy One of `"sequential"` (default), `"multisession"`, `"multicore"`, or `"mixed"`.
 #'
-#' @return Returns the appropriate operator to use in a \code{\link{foreach::foreach}} loop. 
-#' The \code{`%do%`} operator is returned if \code{strategy=="sequential"}. 
-#' Otherwise, the \code{`%dopar%`} operator is returned.
+#' @return Returns the appropriate operator to use in a [foreach::foreach()] loop.
+#' The \code{\link[foreach]{\%do\%}} operator is returned if `strategy=="sequential"`.
+#' Otherwise, the \code{\link[foreach]{\%dopar\%}} operator is returned.
 #' @export
+#' @importFrom foreach %do% %dopar%
 #'
-#' @examples
+#' @examples `%fun%` <- get_doFuture_operator("sequential")
 get_doFuture_operator <- function(strategy=c("sequential", "multisession", "multicore", "mixed")){
-  ## character integer -> ___
-  ## get doFuture operator
   
   strategy <- match.arg(strategy)
   
   if(strategy == "sequential"){
-    return(`%do%`)
+    return(foreach::`%do%`)
   } else {
-    return(`%dopar%`)
+    return(foreach::`%dopar%`)
   }
 }
 
 #' Set a doFuture execution strategy
 #'
-#' @param strategy One of \code{"sequential"} (default), \code{"multisession"}, \code{"multicore"}, or \code{"mixed"}.
-#' @param n_workers A positive numeric scalar or a function specifying the maximum number of parallel futures 
-#' that can be active at the same time before blocking. 
-#' If a function, it is called without arguments when the future is created and its value is used to configure the workers. 
-#' The function should return a numeric scalar. 
-#' Defaults to \code{\link{future::availableCores}()-1} if \code{NULL} (default), with \code{"multicore"} constraint in the relevant case. 
-#' Ignored if \code{strategy=="sequential"}.
+#' @param strategy One of `"sequential"` (default), `"multisession"`, `"multicore"`, or `"mixed"`.
+#' @param n_workers A positive numeric scalar or a function specifying the maximum number of parallel futures
+#' that can be active at the same time before blocking.
+#' If a function, it is called without arguments when the future is created and its value is used to configure the workers.
+#' The function should return a numeric scalar.
+#' Defaults to [future::availableCores()]`-1` if `NULL` (default), with `"multicore"` constraint in the relevant case.
+#' Ignored if `strategy=="sequential"`.
 #'
-#' @return The corresponding \code{\link{get_doFuture_operator}} operator to use in a \code{\link{foreach::foreach}} loop.
+#' @return The corresponding [get_doFuture_operator()] operator to use in a [foreach::foreach()] loop.
 #' @export
+#' @importFrom foreach %do% %dopar%
+#' @importFrom future availableCores plan sequential multisession multicore tweak
+#' @importFrom doFuture registerDoFuture
 #'
-#' @examples
+#' @examples \dontrun{
+#' `%fun%` <- set_doFuture_strategy("multisession", n_workers=3)
+#' # perform foreach::foreach loop
+#' end_doFuture_strategy()
+#' }
 set_doFuture_strategy <- function(strategy=c("sequential", "multisession", "multicore", "mixed"),
                                   n_workers=NULL){
   strategy <- match.arg(strategy)
@@ -354,11 +366,16 @@ set_doFuture_strategy <- function(strategy=c("sequential", "multisession", "mult
 
 #' End the currently set doFuture strategy
 #'
-#' @description Resets the default strategy using \code{future::plan("default")}.
-#' 
-#' @export
+#' @description Resets the default strategy using `future::plan("default")`.
 #'
-#' @examples
+#' @export
+#' @importFrom future plan
+#'
+#' @examples \dontrun{
+#' `%fun%` <- set_doFuture_strategy("multisession", n_workers=3)
+#' # perform foreach::foreach loop
+#' end_doFuture_strategy()
+#' }
 end_doFuture_strategy <- function(){
   ## ends the doFuture execution strategy
   
@@ -367,45 +384,57 @@ end_doFuture_strategy <- function(){
 
 #' Start a doParallel execution strategy
 #'
-#' @param strategy One of \code{"sequential"} (default) or \code{"parallel"}.
+#' @param strategy One of `"sequential"` (default) or `"parallel"`.
 #' @param n_workers Number of parallel workers as an integer.
-#' Defaults to \code{\link{parallell::detectCores}()-1} if \code{NULL} (default). 
-#' Ignored if \code{strategy=="sequential"}.
+#' Defaults to [parallel::detectCores()]`-1` if `NULL` (default).
+#' Ignored if `strategy=="sequential"`.
 #'
-#' @return A named list containing: 
-#' \item{par_operator}{the relevant \code{\link{foreach::foreach}} loop operator,}
+#' @return A named list containing:
+#' \itemize{
+#' \item{par_operator}{the relevant [foreach::foreach()] loop operator,}
 #' \item{cl}{the cluster object.}
+#' }
+#' @importFrom foreach %do% %dopar%
+#' @importFrom parallel detectCores makeCluster
+#' @importFrom doParallel registerDoParallel
 #'
-#' @examples
+#' @examples \dontrun{
+#' cl <- start_doParallel_strategy("parallel", n_workers=3)
+#' stop_doParallel_strategy("parallel", cl)
+#' }
 start_doParallel_strategy <- function(strategy=c("sequential", "parallel"),
                                       n_workers=NULL){
   
   strategy <- match.arg(strategy)
   
   if(is.null(n_workers)){
-    n_workers <- max(parallell::detectCores() - 1, 1)
+    n_workers <- max(parallel::detectCores() - 1, 1)
   }
   if(strategy=="parallel"){
     cl <- parallel::makeCluster(n_workers)
     doParallel::registerDoParallel(cl)
-    `%fun%` <- `%dopar%`
+    `%fun%` <- foreach::`%dopar%`
   } else {
     cl <- NULL
-    `%fun%` <- `%do%`
+    `%fun%` <- foreach::`%do%`
   }
   return(list(par_operator=`%fun%`, cl=cl))
 }
 
 #' Stop the current doParallel strategy
-#' 
-#' @description Stops the given cluster, using \code{\link{parallel::stopCluster}(cl)}, if \code{strategy=="parallel"}.
 #'
-#' @param strategy One of \code{"sequential"} (default) or \code{"parallel"}.
-#' @param cl Cluster object, returned by \code{\link{start_doParallel_strategy}(strategy, ...)}.
-#' 
-#' @examples
+#' @description Stops the given cluster, using [parallel::stopCluster()], if `strategy=="parallel"`.
+#'
+#' @param strategy One of `"sequential"` (default) or `"parallel"`.
+#' @param cl Cluster object, returned by [start_doParallel_strategy()], called with the same `strategy`.
+#'
+#' @importFrom parallel stopCluster
+#'
+#' @examples \dontrun{
+#' cl <- start_doParallel_strategy("parallel", n_workers=3)
+#' stop_doParallel_strategy("parallel", cl)
+#' }
 stop_doParallel_strategy <- function(strategy=c("sequential", "parallel"), cl){
-  ## character cluster -> ___
   ## closes the doParallel execution strategy
   
   strategy <- match.arg(strategy)

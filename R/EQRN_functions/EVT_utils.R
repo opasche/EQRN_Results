@@ -4,19 +4,20 @@
 #' @param val Quantile value(s) used to estimate the conditional excess probability or cdf.
 #' @param sigma Value(s) for the GPD scale parameter.
 #' @param xi Value(s) for the GPD shape parameter.
-#' @param interm_threshold Intermediate (conditional) quantile(s) at level \code{threshold_p} used as a (varying) threshold.
-#' @param threshold_p Probability level of the intermediate conditional quantiles \code{interm_threshold}.
-#' @param body_proba Value to use when the predicted conditional probability is below \code{threshold_p}
+#' @param interm_threshold Intermediate (conditional) quantile(s) at level `threshold_p` used as a (varying) threshold.
+#' @param threshold_p Probability level of the intermediate conditional quantiles `interm_threshold`.
+#' @param body_proba Value to use when the predicted conditional probability is below `threshold_p`
 #' (in which case it cannot be precisely assessed by the model).
-#' If \code{"default"} is given (the default), \code{paste0(">",1-threshold_p)} is used if \code{proba_type=="excess"},
-#' and \code{paste0("<",threshold_p)} is used if \code{proba_type=="cdf"}.
-#' @param proba_type Whether to return the \code{"excess"} probability over \code{val} (default) or the \code{"cdf"} at \code{val}.
+#' If `"default"` is given (the default), `paste0(">",1-threshold_p)` is used if `proba_type=="excess"`,
+#' and `paste0("<",threshold_p)` is used if `proba_type=="cdf"`.
+#' @param proba_type Whether to return the `"excess"` probability over `val` (default) or the `"cdf"` at `val`.
 #'
-#' @return Vector of probabilities (and possibly a few \code{body_proba} values if \code{val} is not large enough)
-#' of the same length as the longest vector between \code{val}, \code{sigma}, \code{xi. and \code{interm_threshold}.
+#' @return Vector of probabilities (and possibly a few `body_proba` values if `val` is not large enough)
+#' of the same length as the longest vector between `val`, `sigma`, `xi` and `interm_threshold`.
 #' @export
+#' @importFrom evd pgpd
 #'
-#' @examples
+#' @examples #TODO
 GPD_excess_probability <- function(val, sigma, xi, interm_threshold, threshold_p, body_proba="default", proba_type=c("excess","cdf")){
   
   proba_type <- match.arg(proba_type)
@@ -58,25 +59,29 @@ GPD_excess_probability <- function(val, sigma, xi, interm_threshold, threshold_p
 #' Maximum likelihood estimates for the GPD distribution using peaks over threshold
 #'
 #' @param Y Vector of observations
-#' @param interm_lvl Probability level at which the empirical quantile should be used as the threshold, 
-#' if \code{thresh_quantiles} is not given.
-#' @param thresh_quantiles Numerical value or numerical vector of the same length as \code{Y} 
+#' @param interm_lvl Probability level at which the empirical quantile should be used as the threshold,
+#' if `thresh_quantiles` is not given.
+#' @param thresh_quantiles Numerical value or numerical vector of the same length as `Y`
 #' representing either a fixed or a varying threshold, respectively.
 #'
 #' @return Named list containing:
+#' \itemize{
 #' \item{scale}{the GPD scale MLE,}
 #' \item{shape}{the GPD shape MLE,}
-#' \item{fit}{the fitted \code{\link{ismev::gpd.fit}} object.}
+#' \item{fit}{the fitted [ismev::gpd.fit()] object.}
+#' }
 #' @export
+#' @importFrom stats quantile
+#' @importFrom ismev gpd.fit
 #'
-#' @examples
+#' @examples #TODO
 fit_GPD_unconditional <- function(Y, interm_lvl=NULL, thresh_quantiles=NULL){
-  ## 
+  ##
   if(is.null(interm_lvl) & is.null(thresh_quantiles)){
     fit <- ismev::gpd.fit(Y, 0, show = FALSE)
   } else {
     if(is.null(thresh_quantiles)){
-      u <- quantile(Y, interm_lvl)
+      u <- stats::quantile(Y, interm_lvl)
       fit <- ismev::gpd.fit(Y, u, show = FALSE)
     } else {
       Y_rescaled <- Y - thresh_quantiles
@@ -96,18 +101,24 @@ fit_GPD_unconditional <- function(Y, interm_lvl=NULL, thresh_quantiles=NULL){
 #' @param Y Vector of ("training") observations.
 #' @param ntest Number of "test" observations.
 #'
-#' @return Named list containing: 
-#' \item{predictions}{matrix of dimension \code{ntest} times \code{length(quantiles)} 
-#' containing the estimated extreme quantile at levels \code{quantile}, repeated \code{ntest} times,}
-#' \item{pars}{matrix of dimension \code{ntest} times \code{2} 
-#' containing the two GPD parameter MLEs, repeated \code{ntest} times.}
+#' @return Named list containing:
+#' \itemize{
+#' \item{predictions}{matrix of dimension `ntest` times `length(quantiles)`
+#' containing the estimated extreme quantile at levels `quantile`, repeated `ntest` times,}
+#' \item{pars}{matrix of dimension `ntest` times `2`
+#' containing the two GPD parameter MLEs, repeated `ntest` times.}
+#' \item{threshold}{The threshold for the peaks-over-threshold GPD model.
+#' It is the empirical quantile of `Y` at level `interm_lvl`, i.e. `stats::quantile(Y, interm_lvl)`.}
+#' }
 #' @export
+#' @importFrom stats quantile
+#' @importFrom ismev gpd.fit
 #'
-#' @examples
+#' @examples #TODO
 predict_unconditional_quantiles <- function(interm_lvl, quantiles = c(0.99), Y, ntest=1){
   
   p0 <- interm_lvl
-  t0 <- quantile(Y, p0)
+  t0 <- stats::quantile(Y, p0)
   pars <- ismev::gpd.fit(Y, t0, show = FALSE)$mle
   sigma <- pars[1]
   xi <- pars[2]
@@ -123,23 +134,25 @@ predict_unconditional_quantiles <- function(interm_lvl, quantiles = c(0.99), Y, 
 #'
 #' @param Y Vector of ("training") observations.
 #' @param interm_lvl Probability level at which the empirical quantile should be used as the intermediate threshold.
-#' @param thresh_quantiles Numerical vector of the same length as \code{Y} 
+#' @param thresh_quantiles Numerical vector of the same length as `Y`
 #' representing the varying intermediate threshold on the train set.
-#' @param interm_quantiles_test Numerical vector of the same length as \code{Y} 
+#' @param interm_quantiles_test Numerical vector of the same length as `Y`
 #' representing the varying intermediate threshold used for prediction on the test set.
 #' @param quantiles_predict Probability levels at which to predict the extreme semi-conditional quantiles.
 #'
-#' @return Named list containing: 
-#' \item{predictions}{matrix of dimension \code{length(interm_quantiles_test)} times \code{length(quantiles_predict)} 
-#' containing the estimated extreme quantile at levels \code{quantile}, for each \code{interm_quantiles_test},}
-#' \item{pars}{matrix of dimension \code{ntest} times \code{2} 
-#' containing the two GPD parameter MLEs, repeated \code{length(interm_quantiles_test)} times.}
+#' @return Named list containing:
+#' \itemize{
+#' \item{predictions}{matrix of dimension `length(interm_quantiles_test)` times `length(quantiles_predict)`
+#' containing the estimated extreme quantile at levels `quantile`, for each `interm_quantiles_test`,}
+#' \item{pars}{matrix of dimension `ntest` times `2`
+#' containing the two GPD parameter MLEs, repeated `length(interm_quantiles_test)` times.}
+#' }
 #' @export
 #'
-#' @examples
+#' @examples #TODO
 predict_GPD_semiconditional <- function(Y, interm_lvl, thresh_quantiles, interm_quantiles_test=thresh_quantiles,
                                         quantiles_predict = c(0.99)){
-  ## 
+  ##
   fit <- fit_GPD_unconditional(Y, interm_lvl=interm_lvl, thresh_quantiles=thresh_quantiles)
   nb_quantiles_predict <- length(quantiles_predict)
   predicted_quantiles <- matrix(as.double(NA),nrow=length(interm_quantiles_test), ncol=nb_quantiles_predict)
@@ -154,21 +167,22 @@ predict_GPD_semiconditional <- function(Y, interm_lvl, thresh_quantiles, interm_
 #'
 #' @param sigma Value(s) for the GPD scale parameter.
 #' @param xi Value(s) for the GPD shape parameter.
-#' @param y Vector of observations 
+#' @param y Vector of observations
 #' @param rescaled Whether y already is a vector of excesses (TRUE) or needs rescaling (FALSE).
-#' @param interm_lvl Probability level at which the empirical quantile should be used as the intermediate threshold 
-#' to compute the excesses, if \code{rescaled==FALSE}.
-#' @param return_vector Whether to return the the vector of GPD losses for each observation 
+#' @param interm_lvl Probability level at which the empirical quantile should be used as the intermediate threshold
+#' to compute the excesses, if `rescaled==FALSE`.
+#' @param return_vector Whether to return the the vector of GPD losses for each observation
 #' instead of the negative log-likelihood (average loss).
 #'
 #' @return GPD negative log-likelihood of the GPD parameters over the sample of observations
 #' @export
+#' @importFrom stats quantile
 #'
-#' @examples
+#' @examples #TODO
 loss_GPD <- function(sigma, xi, y, rescaled=TRUE, interm_lvl=NULL, return_vector=FALSE){
   if(!rescaled){
     if(is.null(interm_lvl)){stop("Must provide POT interm_lvl value to rescale y vector in 'loss_GPD'.")}
-    u <- quantile(y, interm_lvl)
+    u <- stats::quantile(y, interm_lvl)
     y_rescaled <- y - u
     y_excesses <- y_rescaled[y_rescaled>=0]
   }else{
@@ -187,16 +201,18 @@ loss_GPD <- function(sigma, xi, y, rescaled=TRUE, interm_lvl=NULL, return_vector
 #' @param interm_lvl Probability level at which the empirical quantile should be used as the threshold.
 #' @param Y_valid Vector of "validation" observations, on which to estimate the out of training sample GPD loss.
 #'
-#' @return Named list containing: 
+#' @return Named list containing:
+#' \itemize{
 #' \item{scale}{GPD scale MLE inferred from the train set,}
 #' \item{shape}{GPD shape MLE inferred from the train set,}
 #' \item{train_loss}{the negative log-likelihoods of the MLEs over the training samples,}
 #' \item{valid_loss}{the negative log-likelihoods of the MLEs over the validation samples.}
+#' }
 #' @export
 #'
-#' @examples
+#' @examples #TODO
 unconditional_train_valid_GPD_loss <- function(Y_train, interm_lvl, Y_valid){
-  ## 
+  ##
   fit <- fit_GPD_unconditional(Y_train, interm_lvl=interm_lvl, thresh_quantiles=NULL)
   train_loss <- loss_GPD(fit$scale, fit$shape, Y_train, rescaled=FALSE, interm_lvl=interm_lvl, return_vector=FALSE)
   valid_loss <- loss_GPD(fit$scale, fit$shape, Y_valid, rescaled=FALSE, interm_lvl=interm_lvl, return_vector=FALSE)
@@ -210,16 +226,18 @@ unconditional_train_valid_GPD_loss <- function(Y_train, interm_lvl, Y_valid){
 #' @param interm_quant_train Vector of intermediate quantiles serving as a varying threshold for each training observation.
 #' @param interm_quant_valid Vector of intermediate quantiles serving as a varying threshold for each validation observation.
 #'
-#' @return Named list containing: 
+#' @return Named list containing:
+#' \itemize{
 #' \item{scale}{GPD scale MLE inferred from the train set,}
 #' \item{shape}{GPD shape MLE inferred from the train set,}
 #' \item{train_loss}{the negative log-likelihoods of the MLEs over the training samples,}
 #' \item{valid_loss}{the negative log-likelihoods of the MLEs over the validation samples.}
+#' }
 #' @export
 #'
-#' @examples
+#' @examples #TODO
 semiconditional_train_valid_GPD_loss <- function(Y_train, Y_valid, interm_quant_train, interm_quant_valid){
-  ## 
+  ##
   Y_tr_rescaled <- Y_train - interm_quant_train
   Y_tr_excesses <- Y_tr_rescaled[Y_tr_rescaled>=0]
   Y_va_rescaled <- Y_valid - interm_quant_valid
@@ -238,10 +256,10 @@ semiconditional_train_valid_GPD_loss <- function(Y_train, Y_valid, interm_quant_
 #' @param sigma Value(s) for the GPD scale parameter.
 #' @param xi Value(s) for the GPD shape parameter.
 #'
-#' @return The quantile value at probability level \code{p}.
+#' @return The quantile value at probability level `p`.
 #' @export
 #'
-#' @examples
+#' @examples #TODO
 GPD_quantiles <- function(p, p0, t_x0, sigma, xi){
   ## numeric(0, 1) numeric(0, 1) numeric_vector numeric_vector numeric_vector
   ## -> numeric_vector

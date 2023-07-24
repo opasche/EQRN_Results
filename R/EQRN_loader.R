@@ -20,12 +20,6 @@ library(scales)
 
 #coro, mvtnorm, randtoolbox, # stats, tools
 
-if (cuda_is_available()) {
-  device <- torch_device("cuda")
-} else {
-  device <- torch_device("cpu")
-}
-
 source("R/EQRN_functions/utils.R")
 source("R/EQRN_functions/accuracy_metrics.R")
 
@@ -44,3 +38,15 @@ source("R/simulation_functions/series_model_functions.R")
 source("R/plotting_functions/plot_utils.R")
 source("R/plotting_functions/plot_helpers.R")
 source("R/plotting_functions/plot_helpers_ts.R")
+
+
+# Override for default torch device
+#default_device <- function(){
+#  if(torch::cuda_is_available()) {
+#    device <- torch::torch_device("cuda")
+#  } else {
+#    device <- torch::torch_device("cpu")
+#  }
+#  return(device)
+#}
+
