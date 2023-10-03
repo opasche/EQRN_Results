@@ -4,8 +4,8 @@ This repository contains code and reproducible results from the article
 Olivier C. Pasche and Sebastian Engelke (2022). "Neural Networks for Extreme Quantile Regression with an Application to Forecasting of Flood Risk". [ArXiv:2208.07590](https://arxiv.org/abs/2208.07590) ([pdf](https://arxiv.org/pdf/2208.07590)).
 
 ## EQRN Package
-An easy-to-use package is under development and will be available in open access at [github.com/opasche/EQRN](https://github.com/opasche/EQRN). 
-On the other hand, this current repository `EQRN_Results` provides the implementation for the experiments and results presented in the main paper, with a snapshot of the EQRN implementation at the time of those experiments, for reproducibility.
+A user-friendly package is under development and available in open access at [github.com/opasche/EQRN](https://github.com/opasche/EQRN). 
+On the other hand, this current repository `EQRN_Results` provides the implementation for the experiments and results presented in the main paper, with a snapshot of the EQRN implementation at the time of those experiments, for convinience in reproducibility.
 
 ## Contents of this Repository
 - The `R/` folder contains a snapshot of the EQRN package functions to ensure reproducibility, as well as plotting function, simulation data functions, and other helper functions.

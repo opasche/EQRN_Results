@@ -50,3 +50,6 @@ source("R/plotting_functions/plot_helpers_ts.R")
 #  return(device)
 #}
 
+# Legacy for default torch device
+device <- default_device()
+

@@ -33,6 +33,7 @@
 #' if it is larger than on any of the previous `patience_lag` epochs.
 #' @param optim_met DEPRECATED. Optimization algorithm to use during training. `"adam"` is the default.
 #' @param seed Integer random seed for reproducibility in network weight initialization.
+#' @param verbose Amount of information printed during training (0:nothing, 1:most important, 2:everything).
 #' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
 #' @return An QRN object of classes `c("QRN_seq", "QRN")`, containing the fitted network,
@@ -45,7 +46,8 @@
 QRN_seq_fit <- function(X, Y, q_level, hidden_size=10, num_layers=1, rnn_type=c("lstm","gru"), p_drop=0,
                         learning_rate=1e-4, L2_pen=0, seq_len=10, scale_features=TRUE, n_epochs=1e4, batch_size=256,
                         X_valid=NULL, Y_valid=NULL, lr_decay=1, patience_decay=n_epochs, min_lr=0, patience_stop=n_epochs,
-                        tol=1e-4, fold_separation=NULL, warm_start_path=NULL, patience_lag=5, optim_met="adam", seed=NULL, device=default_device()){
+                        tol=1e-4, fold_separation=NULL, warm_start_path=NULL, patience_lag=5, optim_met="adam",
+                        seed=NULL, verbose=2, device=default_device()){
   
   if(!is.null(seed)){torch::torch_manual_seed(seed)}
   
@@ -138,7 +140,7 @@ QRN_seq_fit <- function(X, Y, q_level, hidden_size=10, num_layers=1, rnn_type=c(
           if(is.na(loss_log_valid[e])){
             nb_not_improving_val <- nb_not_improving_val + 1
             nb_not_improving_lr <- nb_not_improving_lr + 1
-            cat("NaN validation loss at epoch:", e, "\n")
+            if(verbose>1){cat("NaN validation loss at epoch:", e, "\n")}
           }
         }else{
           if(loss_log_valid[e]>(min(loss_log_valid[(e-patience_lag):(e-1)])-tol)){
@@ -157,8 +159,10 @@ QRN_seq_fit <- function(X, Y, q_level, hidden_size=10, num_layers=1, rnn_type=c(
         nb_not_improving_lr <- 0
       }
       if(nb_not_improving_val >= patience_stop){
-        cat("Early stopping at epoch:", e,", average train loss:", loss_log_train[e],
-            ", validation loss:", loss_log_valid[e], ", lr=", curent_lr, "\n")
+        if(verbose>0){
+          cat("Early stopping at epoch:", e,", average train loss:", loss_log_train[e],
+              ", validation loss:", loss_log_valid[e], ", lr=", curent_lr, "\n")
+        }
         break
       }
       network$train()
@@ -173,16 +177,20 @@ QRN_seq_fit <- function(X, Y, q_level, hidden_size=10, num_layers=1, rnn_type=c(
       }
     }
     if(nb_stable >= patience_stop){
-      cat("Early tolerence stopping at epoch:", e,", average train loss:", loss_log_train[e])
-      if(do_validation){cat(", validation loss:", loss_log_valid[e])}
-      cat(", lr=", curent_lr, "\n")
+      if(verbose>0){
+        cat("Early tolerence stopping at epoch:", e,", average train loss:", loss_log_train[e])
+        if(do_validation){cat(", validation loss:", loss_log_valid[e])}
+        cat(", lr=", curent_lr, "\n")
+      }
       break
     }
     # Print progess
-    if(e %% 100 == 0 || e == 1){
-      cat("Epoch:", e, "out of", n_epochs ,", average train loss:", loss_log_train[e])
-      if(do_validation){cat(", validation loss:", loss_log_valid[e], ", lr=", curent_lr)}
-      cat("\n")
+    if(e %% 100 == 0 || (e == 1 || e == n_epochs)){
+      if(verbose>1){
+        cat("Epoch:", e, "out of", n_epochs ,", average train loss:", loss_log_train[e])
+        if(do_validation){cat(", validation loss:", loss_log_valid[e], ", lr=", curent_lr)}
+        cat("\n")
+      }
     }
   }
   

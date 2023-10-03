@@ -37,6 +37,7 @@
 #' @param fold_separation Index of fold separation or sequential discontinuity in the data.
 #' @param optim_met DEPRECATED. Optimization algorithm to use during training. `"adam"` is the default.
 #' @param seed Integer random seed for reproducibility in network weight initialization.
+#' @param verbose Amount of information printed during training (0:nothing, 1:most important, 2:everything).
 #' @param device (optional) A [torch::torch_device()]. Defaults to [default_device()].
 #'
 #' @return An EQRN object of classes `c("EQRN_seq", "EQRN")`, containing the fitted network,
@@ -48,9 +49,10 @@
 #' @examples #TODO
 EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=FALSE, hidden_size=10, num_layers=1, rnn_type=c("lstm","gru"), p_drop=0,
                          intermediate_q_feature=TRUE, learning_rate=1e-4, L2_pen=0, seq_len=10, shape_penalty=0,
-                         scale_features=TRUE, n_epochs=500, batch_size=256,
-                         X_valid=NULL, y_valid=NULL, quant_valid=NULL, lr_decay=1, patience_decay=n_epochs, min_lr=0, patience_stop=n_epochs,
-                         tol=1e-5, orthogonal_gpd=TRUE, patience_lag=1, fold_separation=NULL, optim_met="adam", seed=NULL, device=default_device()){
+                         scale_features=TRUE, n_epochs=500, batch_size=256, X_valid=NULL, y_valid=NULL, quant_valid=NULL,
+                         lr_decay=1, patience_decay=n_epochs, min_lr=0, patience_stop=n_epochs,
+                         tol=1e-5, orthogonal_gpd=TRUE, patience_lag=1, fold_separation=NULL, optim_met="adam",
+                         seed=NULL, verbose=2, device=default_device()){
   
   if(!is.null(seed)){torch::torch_manual_seed(seed)}
   
@@ -152,7 +154,7 @@ EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=F
           if(is.nan(loss_log_valid[e])){
             nb_not_improving_val <- nb_not_improving_val + 1
             nb_not_improving_lr <- nb_not_improving_lr + 1
-            cat("NaN validation loss at epoch:", e, "\n")
+            if(verbose>1){cat("NaN validation loss at epoch:", e, "\n")}
           }
         }else{
           if(loss_log_valid[e]>(min(loss_log_valid[(e-patience_lag):(e-1)])-tol)){
@@ -171,8 +173,10 @@ EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=F
         nb_not_improving_lr <- 0
       }
       if(nb_not_improving_val >= patience_stop){
-        cat("Early stopping at epoch:", e,", average train loss:", loss_log_train[e],
-            ", validation loss:", loss_log_valid[e], ", lr=", curent_lr, "\n")
+        if(verbose>0){
+          cat("Early stopping at epoch:", e,", average train loss:", loss_log_train[e],
+              ", validation loss:", loss_log_valid[e], ", lr=", curent_lr, "\n")
+        }
         break
       }
       network$train()
@@ -187,16 +191,20 @@ EQRN_fit_seq <- function(X, y, intermediate_quantiles, interm_lvl, shape_fixed=F
       }
     }
     if(nb_stable >= patience_stop){
-      cat("Early tolerence stopping at epoch:", e,", average train loss:", loss_log_train[e])
-      if(do_validation){cat(", validation loss:", loss_log_valid[e])}
-      cat(", lr=", curent_lr, "\n")
+      if(verbose>0){
+        cat("Early tolerence stopping at epoch:", e,", average train loss:", loss_log_train[e])
+        if(do_validation){cat(", validation loss:", loss_log_valid[e])}
+        cat(", lr=", curent_lr, "\n")
+      }
       break
     }
     # Print progess
-    if(e %% 100 == 0 || e == 1){
-      cat("Epoch:", e, "out of", n_epochs ,", average train loss:", loss_log_train[e])
-      if(do_validation){cat(", validation loss:", loss_log_valid[e], ", lr=", curent_lr)}
-      cat("\n")
+    if(e %% 100 == 0 || (e == 1 || e == n_epochs)){
+      if(verbose>1){
+        cat("Epoch:", e, "out of", n_epochs ,", average train loss:", loss_log_train[e])
+        if(do_validation){cat(", validation loss:", loss_log_valid[e], ", lr=", curent_lr)}
+        cat("\n")
+      }
     }
   }
   
@@ -275,6 +283,7 @@ EQRN_predict_seq <- function(fit_eqrn, X, Y, quantiles_predict, intermediate_qua
 #' containing the conditional quantile estimates of the response associated to each covariate observation at each probability level.
 #'
 #' @examples #TODO
+#' @keywords internal
 EQRN_predict_internal_seq <- function(fit_eqrn, X, Y, quantile_predict, intermediate_quantiles, interm_lvl,
                                       crop_predictions=FALSE, seq_len=fit_eqrn$seq_len, device=default_device()){
   
@@ -432,6 +441,7 @@ compute_EQRN_seq_GPDLoss <- function(fit_eqrn, X, Y, intermediate_quantiles=NULL
 #' @import torch
 #'
 #' @examples #TODO
+#' @keywords internal
 setup_optimizer_seq <- function(network, learning_rate, L2_pen, optim_met="adam"){
   if(optim_met!="adam"){stop("Other optim methods are deprecated.")}
   

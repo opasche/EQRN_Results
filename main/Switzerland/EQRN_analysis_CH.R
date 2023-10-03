@@ -404,8 +404,11 @@ excess_prob_100y_uncond <- GPD_excess_probability(val=return_lvl_100y, sigma=pre
                                                   threshold_p=interm_lvl, body_proba="default", proba_type="excess")
 
 pred_unc_rl <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = p_daily_100y, Y = y_train_all, ntest = n_test)
+pred_unc_nex <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = q_levels_nex, Y = y_train_all, ntest = n_test)
 pred_semicond_rl <- predict_GPD_semiconditional(Y=y_train_all[(seq_len+1):n_train_all], interm_lvl=interm_lvl, thresh_quantiles=interm_quantiles_all[(seq_len+1):n_train_all],
                                                 interm_quantiles_test=pred_interm[seq_len+(1:n_test)], quantiles_predict=p_daily_100y)
+pred_semicond_nex <- predict_GPD_semiconditional(Y=y_train_all[(seq_len+1):n_train_all], interm_lvl=interm_lvl, thresh_quantiles=interm_quantiles_all[(seq_len+1):n_train_all],
+                                                interm_quantiles_test=pred_interm[seq_len+(1:n_test)], quantiles_predict=q_levels_nex)
 
 
 ## ============= Quantile and exceedance proba prediction plots ==============
@@ -568,6 +571,24 @@ if(!is.null(save_path)){
               width = mp_wdth, height = mp_wdth, cairo=FALSE)
 }
 
+if(do_competitors){
+  nex_plt_c <- plot_exceedences_quantile_comp(pred_eqrn_nex, pred_grf_nex, pred_unc_nex$predictions, pred_semicond_nex$predictions, 
+                                              pred_exqar_nex, pred_gbex_nex, pred_egam_nex,
+                                              y=y_test[seq_len+(1:n_test)], quantile_levels=roundm(q_levels_nex,4), 
+                                              legend.position="bottom")
+  nex_plt_d <- plot_exceedences_quantile_diff(pred_eqrn_nex, pred_grf_nex, pred_unc_nex$predictions, pred_semicond_nex$predictions, 
+                                              pred_exqar_nex, pred_gbex_nex, pred_egam_nex,
+                                              y=y_test[seq_len+(1:n_test)], quantile_levels=roundm(q_levels_nex,4), type_diff="diff", 
+                                              legend.position="bottom")
+  plot(nex_plt_c)
+  if(!is.null(save_path)){
+    save_myplot(plt=nex_plt_c, plt_nm=paste0(save_path,"number_exceedences_quant_c.pdf"),
+                width = mp_wdth, height = mp_wdth, cairo=FALSE)
+    save_myplot(plt=nex_plt_d, plt_nm=paste0(save_path,"number_exceedences_quant_d.pdf"),
+                width = mp_wdth, height = mp_wdth, cairo=FALSE)
+  }
+}
+
 ## ============= Validation curve during EQRN training ==============
 
 valid_plot <- validation_plot_eqrn(fit_eqrn, uncond_losses_interm, show_legend=FALSE)
@@ -607,4 +628,6 @@ print((p_ratio100>pratio_thresh)[first_cluster_exceedences_ind])
 end_time <- Sys.time()
 cat("\nRun time:\n")
 print(end_time - start_time)
+
+
 
