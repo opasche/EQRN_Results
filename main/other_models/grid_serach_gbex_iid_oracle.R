@@ -31,7 +31,7 @@ test_data = "halton"
 
 # PARAM: General
 interm_lvl = 0.8
-quantiles_predict = c(0.995,0.999,0.9995)
+prob_lvls_predict = c(0.995,0.999,0.9995)
 
 # PARAM: gbex
 intermediate_q_feature=TRUE

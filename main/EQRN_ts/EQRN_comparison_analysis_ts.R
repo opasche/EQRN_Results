@@ -22,24 +22,24 @@ set.seed(seedR)
 n <- 5e3
 ntest <- 5e3
 n_valid <- 2e3
-X_distr="foldnormal"
-Y_distr="foldnormal"
+X_distr <- "foldnormal"
+Y_distr <- "foldnormal"
 df <- 4
-alphas=c(.2,.1,.1,.1,.1)
-betas=c(0)
-sX=c(.3,.2,.1,.1,.1)
-S0=1
-AR=c(0)
-MA=c(0)
-muX=c(0)
-mu0=0
-ARX=c(0.4)
-seasonal_hetero=0
+alphas <- c(.2,.1,.1,.1,.1)
+betas <- c(0)
+sX <- c(.3,.2,.1,.1,.1)
+S0 <- 1
+AR <- c(0)
+MA <- c(0)
+muX <- c(0)
+mu0 <- 0
+ARX <- c(0.4)
+seasonal_hetero <- 0
 
 # PARAM: General
 intermediate_method <- "qrn"#"qrn""oracle"
-interm_lvl = 0.8
-quantiles_predict = c(0.995,0.999,0.9995)
+interm_lvl <- 0.8
+prob_lvls_predict <- c(0.995,0.999,0.9995)
 
 # Params: QRNN
 interm_path <- "data/simulations/ts_intermediate_quantile_best/"
@@ -195,7 +195,7 @@ if(!file.exists(paste0(interm_path,"Data_backup.rds"))){
 rm(data_save)
 
 n_train_all <- n+n_valid
-true_quantiles <- series_theoretical_quantiles(quantiles_predict, dat, Y_distr=Y_distr)
+true_quantiles <- series_theoretical_quantiles(prob_lvls_predict, dat, Y_distr=Y_distr)
 seq_len <- par_qrn$seq_len
 X_train <- dat$X[1:n, , drop=F]
 y_train <- dat$Y[1:n]
@@ -259,18 +259,18 @@ print(Sys.time() - start_time)
 ## ======== TESTING ========
 
 #Final EQRN predictions on X_test
-pred_eqrn_p_val <- EQRN_predict_seq(fit_eqrn_p, X_valid, y_valid, quantiles_predict, valid_quantiles, interm_lvl, crop_predictions=TRUE)
-pred_eqrn_p <- EQRN_predict_seq(fit_eqrn_p, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
-pred_eqrn_np_val <- EQRN_predict_seq(fit_eqrn_np, X_valid, y_valid, quantiles_predict, valid_quantiles, interm_lvl, crop_predictions=TRUE)
-pred_eqrn_np <- EQRN_predict_seq(fit_eqrn_np, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
+pred_eqrn_p_val <- EQRN_predict_seq(fit_eqrn_p, X_valid, y_valid, prob_lvls_predict, valid_quantiles, interm_lvl, crop_predictions=TRUE)
+pred_eqrn_p <- EQRN_predict_seq(fit_eqrn_p, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
+pred_eqrn_np_val <- EQRN_predict_seq(fit_eqrn_np, X_valid, y_valid, prob_lvls_predict, valid_quantiles, interm_lvl, crop_predictions=TRUE)
+pred_eqrn_np <- EQRN_predict_seq(fit_eqrn_np, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
 
 
 # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = y_train_all, ntest = ntest)
+pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = y_train_all, ntest = ntest)
 
 # SEMI-CONDITIONAL predicted quantiles
 pred_semicond <- predict_GPD_semiconditional(Y=y_train[(seq_len+1):n], interm_lvl=interm_lvl, thresh_quantiles=intermediate_quantiles[(seq_len+1):n],
-                                             interm_quantiles_test=pred_interm[seq_len+(1:ntest)], quantiles_predict=quantiles_predict)
+                                             interm_quantiles_test=pred_interm[seq_len+(1:ntest)], prob_lvls_predict=prob_lvls_predict)
 
 # GROUND-TRUTH (y_test)
 pred_true <- true_quantiles_test
@@ -318,22 +318,22 @@ pred_interm_c <- thresh_quant_all_c[(n_train_all+1-par_qrn$seq_len):(n_train_all
 lagged_interm_q_trall <- interm_quantiles_all_c[(grf_pars$timedep+1):length(interm_quantiles_all_c), , drop=F]
 laged_interm_q_test <- pred_interm_c[(grf_pars$timedep+1):length(pred_interm_c), , drop=F]
 #High quantile prediction with GRF
-pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = quantiles_predict)$predictions
+pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = prob_lvls_predict)$predictions
 
 # Main competitors (GBEX, EGAM, EXQAR) fits and prediction
 fit_gbex <- gbex_fit(X=lagged_train_all, y=y_train_all[(grf_pars$timedep+1):length(y_train_all)], intermediate_quantiles=lagged_interm_q_trall,
                      interm_lvl=interm_lvl, intermediate_q_feature=gbex_params$intermediate_q_feature, scale_features=gbex_params$scale_features,
                      B=gbex_params$B, lambda=gbex_params$lambda, lambda_ratio=gbex_params$lambda_ratio,
                      lambda_scale=gbex_params$lambda_scale, depth=gbex_params$depth, sf=gbex_params$sf)
-pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=quantiles_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
+pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=prob_lvls_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
 fit_egam <- fit_gpd_gam(X=lagged_train_all, y=y_train_all[(grf_pars$timedep+1):length(y_train_all)],
                         intermediate_quantiles=lagged_interm_q_trall, interm_lvl=interm_lvl, model_shape=egam_params$model_shape,
                         intermediate_q_feature=egam_params$intermediate_q_feature, scale_features=egam_params$scale_features)
-pred_egam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=quantiles_predict,
+pred_egam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=prob_lvls_predict,
                              intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
 fit_exqar <- EXQAR_fit(y_train_all, X=X_train_all, lag=grf_pars$timedep,
                        delta1=exqar_params$delta1, delta2=exqar_params$delta2)
-pred_exqar <- EXQAR_predict(fit_exqar, y_test, X=X_test, quantiles_predict, tol=1e-4, min_prop=0.3, return_infos=TRUE)
+pred_exqar <- EXQAR_predict(fit_exqar, y_test, X=X_test, prob_lvls_predict, tol=1e-4, min_prop=0.3, return_infos=TRUE)
 ## ===========================
 
 
@@ -357,7 +357,7 @@ if(save_plots){
 }
 
 # Compute losses for desired predicted quantiles
-nb_quantiles_predict <- length(quantiles_predict)
+nb_prob_lvls_predict <- length(prob_lvls_predict)
 
 quant_pred_plot <- c(0.8, 0.85, 0.9, 0.95, 0.99, 0.995, 0.999, 0.9995)
 quant_pred_plot_smooth <- c(0.8,1-10^c(-1,-1.5,-2,-2.5,-3,-3.5,-4))
@@ -395,7 +395,7 @@ for (Q_pred_levels in list(list(qs=quant_pred_plot, nm="dq"),
   }
 }
 
-for(i in 1:nb_quantiles_predict){
+for(i in 1:nb_prob_lvls_predict){
   pred_vs_true_comp_sc <- plot_predictions_vs_truth_comp(pred_eqrn_np[,i], pred_eqrn_p[,i], pred_semicond$predictions[,i],
                                                          pred_true[,i], names_EQRN=c("EQRN unpen.","EQRN best"),
                                                          name_other="Semi_cond", legend.position="none")#"none""bottom"
@@ -405,9 +405,9 @@ for(i in 1:nb_quantiles_predict){
   plot(pred_vs_true_comp_sc)
   plot(pred_vs_true_comp_solo)
   if(save_plots){
-    save_myplot(plt=pred_vs_true_comp_sc, plt_nm=paste0(save_path, "predVStruth_comp_sc_q",quantiles_predict[i]*10000,".pdf"),
+    save_myplot(plt=pred_vs_true_comp_sc, plt_nm=paste0(save_path, "predVStruth_comp_sc_q",prob_lvls_predict[i]*10000,".pdf"),
                 width = mp_wdth, height = mp_wdth, cairo=FALSE)
-    save_myplot(plt=pred_vs_true_comp_solo, plt_nm=paste0(save_path, "predVStruth_comp_solo_q",quantiles_predict[i]*10000,".pdf"),
+    save_myplot(plt=pred_vs_true_comp_solo, plt_nm=paste0(save_path, "predVStruth_comp_solo_q",prob_lvls_predict[i]*10000,".pdf"),
                 width = mp_wdth, height = mp_wdth, cairo=FALSE)
   }
 }

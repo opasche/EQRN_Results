@@ -70,7 +70,7 @@ fe_out <- foreach(param_file=param_files, .errorhandling="stop", .combine=rbind)
   rm(data_save)
   
   n_train_all <- n+n_valid
-  true_quantiles <- series_theoretical_quantiles(quantiles_predict, dat, Y_distr=Y_distr)
+  true_quantiles <- series_theoretical_quantiles(prob_lvls_predict, dat, Y_distr=Y_distr)
   seq_len <- par_qrn$seq_len
   X_train <- dat$X[1:n, , drop=F]
   y_train <- dat$Y[1:n]
@@ -142,16 +142,16 @@ fe_out <- foreach(param_file=param_files, .errorhandling="stop", .combine=rbind)
   ## ======== TESTING ========
   
   #Final EQRN predictions on X_test
-  pred_eqrn_val <- EQRN_predict_seq(fit_eqrn, X_valid, y_valid, quantiles_predict, valid_quantiles, interm_lvl, crop_predictions=TRUE)
-  pred_eqrn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
+  pred_eqrn_val <- EQRN_predict_seq(fit_eqrn, X_valid, y_valid, prob_lvls_predict, valid_quantiles, interm_lvl, crop_predictions=TRUE)
+  pred_eqrn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
   
   
   # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = y_train_all, ntest = ntest)
+  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = y_train_all, ntest = ntest)
   
   # SEMI-CONDITIONAL predicted quantiles
   pred_semicond <- predict_GPD_semiconditional(Y=y_train[(seq_len+1):n], interm_lvl=interm_lvl, thresh_quantiles=intermediate_quantiles[(seq_len+1):n],
-                                               interm_quantiles_test=pred_interm[seq_len+(1:ntest)], quantiles_predict=quantiles_predict)
+                                               interm_quantiles_test=pred_interm[seq_len+(1:ntest)], prob_lvls_predict=prob_lvls_predict)
   
   # GROUND-TRUTH (y_test)
   pred_true <- true_quantiles_test
@@ -198,18 +198,18 @@ fe_out <- foreach(param_file=param_files, .errorhandling="stop", .combine=rbind)
   lagged_interm_q_trall <- interm_quantiles_all_c[(grf_pars$timedep+1):length(interm_quantiles_all_c), , drop=F]
   laged_interm_q_test <- pred_interm_c[(grf_pars$timedep+1):length(pred_interm_c), , drop=F]
   #High quantile prediction with GRF
-  pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = quantiles_predict)$predictions
+  pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = prob_lvls_predict)$predictions
   
   # GBEX and EGAM fits and prediction
   fit_gbex <- gbex_fit(X=lagged_train_all, y=y_train_all[(grf_pars$timedep+1):length(y_train_all)], intermediate_quantiles=lagged_interm_q_trall,
                        interm_lvl=interm_lvl, intermediate_q_feature=gbex_params$intermediate_q_feature, scale_features=gbex_params$scale_features,
                        B=gbex_params$B, lambda=gbex_params$lambda, lambda_ratio=gbex_params$lambda_ratio,
                        lambda_scale=gbex_params$lambda_scale, depth=gbex_params$depth, sf=gbex_params$sf)
-  pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=quantiles_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
+  pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=prob_lvls_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
   fit_egam <- fit_gpd_gam(X=lagged_train_all, y=y_train_all[(grf_pars$timedep+1):length(y_train_all)],
                           intermediate_quantiles=lagged_interm_q_trall, interm_lvl=interm_lvl, model_shape=egam_params$model_shape,
                           intermediate_q_feature=egam_params$intermediate_q_feature, scale_features=egam_params$scale_features)
-  pred_egam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=quantiles_predict,
+  pred_egam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=prob_lvls_predict,
                                intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
   ## ===========================
   
@@ -222,28 +222,28 @@ fe_out <- foreach(param_file=param_files, .errorhandling="stop", .combine=rbind)
   }
   
   # Compute losses for desired predicted quantiles
-  nb_quantiles_predict <- length(quantiles_predict)
-  MSE_losses <- multilevel_MSE(pred_true, pred_eqrn, quantiles_predict, prefix="test_", give_names=TRUE)
-  MAE_losses <- multilevel_MAE(pred_true, pred_eqrn, quantiles_predict, prefix="test_", give_names=TRUE)
-  for(i in 1:nb_quantiles_predict){
-    predplot <- plot_predictions_ts(pred_eqrn[,i], pred_gbex[,i], pred_true[,i], NaN, quantiles_predict[i], name_other="gbex")
+  nb_prob_lvls_predict <- length(prob_lvls_predict)
+  MSE_losses <- multilevel_MSE(pred_true, pred_eqrn, prob_lvls_predict, prefix="test_", give_names=TRUE)
+  MAE_losses <- multilevel_MAE(pred_true, pred_eqrn, prob_lvls_predict, prefix="test_", give_names=TRUE)
+  for(i in 1:nb_prob_lvls_predict){
+    predplot <- plot_predictions_ts(pred_eqrn[,i], pred_gbex[,i], pred_true[,i], NaN, prob_lvls_predict[i], name_other="gbex")
     plot(predplot)
     if(save_plots){
-      ggsave(paste0(params_string, "_q",quantiles_predict[i]*10000,"_preds.pdf"), plot=predplot, device="pdf",
+      ggsave(paste0(params_string, "_q",prob_lvls_predict[i]*10000,"_preds.pdf"), plot=predplot, device="pdf",
              path=save_path, width=300, height=200, units="mm", dpi=300)
     }
     
-    predplotdiff <- plot_predictions_diff_ts(pred_eqrn[,i], pred_gbex[,i], pred_true[,i], quantiles_predict[i], name_other="gbex")
+    predplotdiff <- plot_predictions_diff_ts(pred_eqrn[,i], pred_gbex[,i], pred_true[,i], prob_lvls_predict[i], name_other="gbex")
     plot(predplotdiff)
     if(save_plots){
-      ggsave(paste0(params_string, "_q",quantiles_predict[i]*10000,"_preds_diff.pdf"), plot=predplotdiff, device="pdf",
+      ggsave(paste0(params_string, "_q",prob_lvls_predict[i]*10000,"_preds_diff.pdf"), plot=predplotdiff, device="pdf",
              path=save_path, width=300, height=200, units="mm", dpi=300)
     }
     
-    resid_box2 <- residuals_boxplot_eqrn2(pred_eqrn[,i], pred_grf_test[,i], pred_gbex[,i], pred_true[,i], quantiles_predict[i])
+    resid_box2 <- residuals_boxplot_eqrn2(pred_eqrn[,i], pred_grf_test[,i], pred_gbex[,i], pred_true[,i], prob_lvls_predict[i])
     plot(resid_box2)
     if(save_plots){
-      ggsave(paste0(params_string, "_q",quantiles_predict[i]*10000,"_residbox2.pdf"), plot=resid_box2, device="pdf",
+      ggsave(paste0(params_string, "_q",prob_lvls_predict[i]*10000,"_residbox2.pdf"), plot=resid_box2, device="pdf",
              path=save_path, width=200, height=150, units="mm", dpi=300)
     }
   }
@@ -253,11 +253,11 @@ fe_out <- foreach(param_file=param_files, .errorhandling="stop", .combine=rbind)
   ## ===================== predictions vs truth plots ============================
   
   pred_vs_true_plot_grf <- plot_predictions_vs_truth(pred_eqrn, pred_grf_test, pred_semicond$predictions,
-                                                     pred_true, quantiles_predict, name_other="GRF")
+                                                     pred_true, prob_lvls_predict, name_other="GRF")
   pred_vs_true_plot_gbex <- plot_predictions_vs_truth(pred_eqrn, pred_gbex, pred_semicond$predictions,
-                                                      pred_true, quantiles_predict, name_other="gbex")
+                                                      pred_true, prob_lvls_predict, name_other="gbex")
   pred_vs_true_plot <- plot_predictions_vs_truth_solo(pred_eqrn, pred_semicond$predictions,
-                                                      pred_true, quantiles_predict)
+                                                      pred_true, prob_lvls_predict)
   plot(pred_vs_true_plot_grf)
   plot(pred_vs_true_plot_gbex)
   plot(pred_vs_true_plot)
@@ -270,19 +270,19 @@ fe_out <- foreach(param_file=param_files, .errorhandling="stop", .combine=rbind)
            path=save_path, width=300, height=100, units="mm", dpi=300)
   }
   
-  ppvgbex <- plot_predictions_vs_competitor(pred_eqrn, pred_gbex, quantiles_predict, name_comp="gbex", xaxis="EQRN")
+  ppvgbex <- plot_predictions_vs_competitor(pred_eqrn, pred_gbex, prob_lvls_predict, name_comp="gbex", xaxis="EQRN")
   plot(ppvgbex)
-  ppvgbex2 <- plot_predictions_vs_competitor(pred_eqrn, pred_gbex, quantiles_predict, name_comp="gbex", xaxis="competitor")
+  ppvgbex2 <- plot_predictions_vs_competitor(pred_eqrn, pred_gbex, prob_lvls_predict, name_comp="gbex", xaxis="competitor")
   plot(ppvgbex2)
   
-  ppvevgam <- plot_predictions_vs_competitor(pred_eqrn, pred_egam, quantiles_predict, name_comp="evGAM", xaxis="EQRN")
+  ppvevgam <- plot_predictions_vs_competitor(pred_eqrn, pred_egam, prob_lvls_predict, name_comp="evGAM", xaxis="EQRN")
   plot(ppvevgam)
-  ppvevgam2 <- plot_predictions_vs_competitor(pred_eqrn, pred_egam, quantiles_predict, name_comp="evGAM", xaxis="competitor")
+  ppvevgam2 <- plot_predictions_vs_competitor(pred_eqrn, pred_egam, prob_lvls_predict, name_comp="evGAM", xaxis="competitor")
   plot(ppvevgam2)
   
-  ppvscond <- plot_predictions_vs_competitor(pred_eqrn, pred_semicond$predictions, quantiles_predict, name_comp="Semi-conditional", xaxis="EQRN")
+  ppvscond <- plot_predictions_vs_competitor(pred_eqrn, pred_semicond$predictions, prob_lvls_predict, name_comp="Semi-conditional", xaxis="EQRN")
   plot(ppvscond)
-  ppvscond2 <- plot_predictions_vs_competitor(pred_eqrn, pred_semicond$predictions, quantiles_predict, name_comp="Semi-conditional", xaxis="competitor")
+  ppvscond2 <- plot_predictions_vs_competitor(pred_eqrn, pred_semicond$predictions, prob_lvls_predict, name_comp="Semi-conditional", xaxis="competitor")
   plot(ppvscond2)
   if(save_plots){
     ggsave(paste0(params_string, "_eqrnn_vs_gbex.pdf"), plot=ppvgbex, device="pdf",

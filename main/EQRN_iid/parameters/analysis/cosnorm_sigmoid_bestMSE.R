@@ -22,7 +22,7 @@ path_data <- paste0("data/simulations/iid_data_interm/",model,"/")
 # PARAM: General
 intermediate_method <- "oracle"
 interm_lvl = 0.8
-quantiles_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
+prob_lvls_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
 
 # Params: GRF
 num.trees = 5e3

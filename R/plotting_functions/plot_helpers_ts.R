@@ -1,63 +1,63 @@
 
-plot_predictions_ts <- function(pred_q, pred_q_other, true_q, y=NaN, quantile_predicted, logscale=FALSE, name_other="GRF"){
+plot_predictions_ts <- function(pred_q, pred_q_other, true_q, y=NaN, prob_lvl_predicted, logscale=FALSE, name_other="GRF"){
   preds_df <- data.frame(t=seq_along(true_q), Other=pred_q_other, EQRN=pred_q, Truth=true_q)
   preds_df <- preds_df %>% rename_with(~str_replace(., "Other", name_other))
   pred_plot <- preds_df %>% tidyr::gather(key="Method", value="Prediction", .data[[name_other]], Truth, EQRN, factor_key=TRUE) %>%
     ggplot(aes(x=t, y=Prediction, group=Method, color=Method)) +
     geom_line() + geom_point(data=data.frame(t=seq_along(true_q), y=y, Method=factor("observations")), aes(x=t, y=y, group=Method, color=Method)) +
     scale_color_manual(values=alpha(c(rgb(57/255,106/255,177/255), "#69b3a2", "black", "black"),c(1,0.5,0.2,0.4))) +
-    labs(title=paste0("Predictions (q=",quantile_predicted,")"), x="time", y="Predictions", color=NULL)
+    labs(title=paste0("Predictions (q=",prob_lvl_predicted,")"), x="time", y="Predictions", color=NULL)
   if(logscale){pred_plot <- pred_plot + scale_y_log10()} 
   return(pred_plot)
 }
 
-plot_predictions_diff_ts <- function(pred_q, pred_q_other, true_q, quantile_predicted, logscale=FALSE, name_other="GRF"){
+plot_predictions_diff_ts <- function(pred_q, pred_q_other, true_q, prob_lvl_predicted, logscale=FALSE, name_other="GRF"){
   preds_df <- data.frame(t=seq_along(true_q), Other=pred_q_other-true_q, EQRN=pred_q-true_q)
   preds_df <- preds_df %>% rename_with(~str_replace(., "Other", name_other))
   pred_plot <- preds_df %>% tidyr::gather(key="Method", value="Prediction", .data[[name_other]], EQRN, factor_key=TRUE) %>%
     ggplot(aes(x=t, y=Prediction, group=Method, color=Method)) +
     geom_line() + scale_color_manual(values=alpha(c("#69b3a2",rgb(57/255,106/255,177/255)),c(0.5,1))) +
-    labs(title=paste0("Predictions (q=",quantile_predicted,")"), x="time", y="Predictions", color=NULL)
+    labs(title=paste0("Predictions (q=",prob_lvl_predicted,")"), x="time", y="Predictions", color=NULL)
   if(logscale){pred_plot <- pred_plot + scale_y_log10()} 
   return(pred_plot)
 }
 
 
-plot_rmse_quantile_ts <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X_test, y_test, quantiles_predict, pred_interm,
+plot_rmse_quantile_ts <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X_test, y_test, prob_lvls_predict, pred_interm,
                                   interm_lvl, interm_quant_train, true_quantiles_test, factorize=TRUE, test_data="other", pred_interm_c=pred_interm,
                                   legend.position="bottom", crop_obs=0, bias_variance=FALSE, crop_Rbv=c(0,0,0)){
   ntest <- nrow(X_test)
-  nb_quantiles_predict <- length(quantiles_predict)
+  nb_prob_lvls_predict <- length(prob_lvls_predict)
   #lagged datasets for competitor methods
   lagged_test <- lagged_features(X=cbind(y_test,X_test), max_lag=fit_eqrn$seq_len, drop_present=TRUE)
   laged_interm_q_test <- pred_interm_c[(fit_eqrn$seq_len+1):length(pred_interm_c), , drop=F]
   #High quantile prediction with GRF
-  pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = quantiles_predict)$predictions
+  pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = prob_lvls_predict)$predictions
   # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = Y_train, ntest = nrow(true_quantiles_test))
+  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = Y_train, ntest = nrow(true_quantiles_test))
   # SEMI-CONDITIONAL predicted quantiles
   pred_semicond <- predict_GPD_semiconditional(Y=Y_train[(seq_len+1):length(Y_train)], interm_lvl=interm_lvl,
                                                thresh_quantiles=interm_quant_train[(seq_len+1):length(interm_quant_train)],
-                                               interm_quantiles_test=pred_interm[(seq_len+1):length(pred_interm)], quantiles_predict=quantiles_predict)
+                                               interm_quantiles_test=pred_interm[(seq_len+1):length(pred_interm)], prob_lvls_predict=prob_lvls_predict)
   # GROUND-TRUTH (y_test)
   pred_true <- true_quantiles_test
   # Prediction GBEX
-  pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=quantiles_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
-  pred_exgam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=quantiles_predict,
+  pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=prob_lvls_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
+  pred_exgam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=prob_lvls_predict,
                                 intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
   
   #Final EQRN predictions on X_test
-  pred_eqrnn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
+  pred_eqrnn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
   
   # Compute losses for desired predicted quantiles
-  RMSEs_eqrnn <- sqrt(multilevel_MSE(pred_true,pred_eqrnn,quantiles_predict,give_names=FALSE))
-  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,quantiles_predict,give_names=FALSE))
-  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,quantiles_predict,give_names=FALSE))
-  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,quantiles_predict,give_names=FALSE))
-  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,quantiles_predict,give_names=FALSE))
-  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_exgam,quantiles_predict,give_names=FALSE))
+  RMSEs_eqrnn <- sqrt(multilevel_MSE(pred_true,pred_eqrnn,prob_lvls_predict,give_names=FALSE))
+  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,prob_lvls_predict,give_names=FALSE))
+  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,prob_lvls_predict,give_names=FALSE))
+  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,prob_lvls_predict,give_names=FALSE))
+  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,prob_lvls_predict,give_names=FALSE))
+  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_exgam,prob_lvls_predict,give_names=FALSE))
   
-  Q_lvls <- if(factorize){as_factor(roundm(quantiles_predict,4))}else{quantiles_predict}
+  Q_lvls <- if(factorize){as_factor(roundm(prob_lvls_predict,4))}else{prob_lvls_predict}
   
   met_names <- c("Uncond", "Semi-cond", "GRF", "EGAM", "GBEX", "EQRN")
   df_rmse <- data.frame(Quantile=Q_lvls, Uncond=RMSEs_unc, Semi_cond=RMSEs_semicond,
@@ -83,26 +83,26 @@ plot_rmse_quantile_ts <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train
     
   }else{
     # Compute metrics for desired predicted quantiles
-    bias_eqrnn <- multilevel_pred_bias(pred_true, pred_eqrnn, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_grf <- multilevel_pred_bias(pred_true, pred_grf_test, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_unc <- multilevel_pred_bias(pred_true, pred_unc$predictions, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_semicond <- multilevel_pred_bias(pred_true, pred_semicond$predictions, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_gbex <- multilevel_pred_bias(pred_true, pred_gbex, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_exgam <- multilevel_pred_bias(pred_true, pred_exgam, quantiles_predict, square_bias=FALSE, give_names=FALSE)
+    bias_eqrnn <- multilevel_pred_bias(pred_true, pred_eqrnn, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_grf <- multilevel_pred_bias(pred_true, pred_grf_test, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_unc <- multilevel_pred_bias(pred_true, pred_unc$predictions, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_semicond <- multilevel_pred_bias(pred_true, pred_semicond$predictions, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_gbex <- multilevel_pred_bias(pred_true, pred_gbex, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_exgam <- multilevel_pred_bias(pred_true, pred_exgam, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
     
-    rstd_eqrnn <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn, quantiles_predict, give_names=FALSE))
-    rstd_grf <- sqrt(multilevel_resid_var(pred_true, pred_grf_test, quantiles_predict, give_names=FALSE))
-    rstd_unc <- sqrt(multilevel_resid_var(pred_true, pred_unc$predictions, quantiles_predict, give_names=FALSE))
-    rstd_semicond <- sqrt(multilevel_resid_var(pred_true, pred_semicond$predictions, quantiles_predict, give_names=FALSE))
-    rstd_gbex <- sqrt(multilevel_resid_var(pred_true, pred_gbex, quantiles_predict, give_names=FALSE))
-    rstd_exgam <- sqrt(multilevel_resid_var(pred_true, pred_exgam, quantiles_predict, give_names=FALSE))
+    rstd_eqrnn <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn, prob_lvls_predict, give_names=FALSE))
+    rstd_grf <- sqrt(multilevel_resid_var(pred_true, pred_grf_test, prob_lvls_predict, give_names=FALSE))
+    rstd_unc <- sqrt(multilevel_resid_var(pred_true, pred_unc$predictions, prob_lvls_predict, give_names=FALSE))
+    rstd_semicond <- sqrt(multilevel_resid_var(pred_true, pred_semicond$predictions, prob_lvls_predict, give_names=FALSE))
+    rstd_gbex <- sqrt(multilevel_resid_var(pred_true, pred_gbex, prob_lvls_predict, give_names=FALSE))
+    rstd_exgam <- sqrt(multilevel_resid_var(pred_true, pred_exgam, prob_lvls_predict, give_names=FALSE))
     
-    Rsqr_eqrnn <- multilevel_R_squared(pred_true, pred_eqrnn, quantiles_predict, give_names=FALSE)
-    Rsqr_grf <- multilevel_R_squared(pred_true, pred_grf_test, quantiles_predict, give_names=FALSE)
-    Rsqr_unc <- multilevel_R_squared(pred_true, pred_unc$predictions, quantiles_predict, give_names=FALSE)
-    Rsqr_semicond <- multilevel_R_squared(pred_true, pred_semicond$predictions, quantiles_predict, give_names=FALSE)
-    Rsqr_gbex <- multilevel_R_squared(pred_true, pred_gbex, quantiles_predict, give_names=FALSE)
-    Rsqr_exgam <- multilevel_R_squared(pred_true, pred_exgam, quantiles_predict, give_names=FALSE)
+    Rsqr_eqrnn <- multilevel_R_squared(pred_true, pred_eqrnn, prob_lvls_predict, give_names=FALSE)
+    Rsqr_grf <- multilevel_R_squared(pred_true, pred_grf_test, prob_lvls_predict, give_names=FALSE)
+    Rsqr_unc <- multilevel_R_squared(pred_true, pred_unc$predictions, prob_lvls_predict, give_names=FALSE)
+    Rsqr_semicond <- multilevel_R_squared(pred_true, pred_semicond$predictions, prob_lvls_predict, give_names=FALSE)
+    Rsqr_gbex <- multilevel_R_squared(pred_true, pred_gbex, prob_lvls_predict, give_names=FALSE)
+    Rsqr_exgam <- multilevel_R_squared(pred_true, pred_exgam, prob_lvls_predict, give_names=FALSE)
     
     Rbv_names <- c("Quantile R squared", "Bias", "Residual standard deviation")
     
@@ -113,7 +113,7 @@ plot_rmse_quantile_ts <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train
                          EGAM=c(Rsqr_exgam,bias_exgam,rstd_exgam),
                          GBEX=c(Rsqr_gbex,bias_gbex,rstd_gbex),
                          EQRN=c(Rsqr_eqrnn,bias_eqrnn,rstd_eqrnn),
-                         metric=factor(rep(Rbv_names, each=nb_quantiles_predict), levels=Rbv_names)) %>%
+                         metric=factor(rep(Rbv_names, each=nb_prob_lvls_predict), levels=Rbv_names)) %>%
       rename_with(~str_replace(., "Semi_cond", "Semi-cond")) %>%
       tidyr::gather(key="Model", value="Error", all_of(met_names), factor_key=TRUE)
     
@@ -139,12 +139,12 @@ plot_rmse_quantile_ts <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train
   }
 }
 
-plot_rmse_quantile_comp_ts <- function(fit_eqrn1, fit_eqrn2, fit_grf, fit_exqar, fit_gbex, fit_egam, Y_train, X_test, y_test, quantiles_predict, pred_interm,
+plot_rmse_quantile_comp_ts <- function(fit_eqrn1, fit_eqrn2, fit_grf, fit_exqar, fit_gbex, fit_egam, Y_train, X_test, y_test, prob_lvls_predict, pred_interm,
                                        interm_lvl, interm_quant_train, true_quantiles_test, factorize=TRUE, test_data="other", pred_interm_c=pred_interm,
                                        names_EQRN=c("EQRN_1","EQRN_2"), legend.position="bottom", crop_obs=0, bias_variance=FALSE, crop_Rbv=c(0,0,0)){
   
   ntest <- nrow(X_test)
-  nb_quantiles_predict <- length(quantiles_predict)
+  nb_prob_lvls_predict <- length(prob_lvls_predict)
   if(fit_eqrn1$seq_len!=fit_eqrn2$seq_len){
     stop("Unfair comparison due to different eqrnn 'seq_len' in 'plot_error_quantile_comp_ts'.")
   }
@@ -152,36 +152,36 @@ plot_rmse_quantile_comp_ts <- function(fit_eqrn1, fit_eqrn2, fit_grf, fit_exqar,
   lagged_test <- lagged_features(X=cbind(y_test,X_test), max_lag=fit_eqrn1$seq_len, drop_present=TRUE)
   laged_interm_q_test <- pred_interm_c[(fit_eqrn1$seq_len+1):length(pred_interm_c), , drop=F]
   #High quantile prediction with GRF
-  pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = quantiles_predict)$predictions
+  pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = prob_lvls_predict)$predictions
   # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = Y_train, ntest = nrow(true_quantiles_test))
+  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = Y_train, ntest = nrow(true_quantiles_test))
   # SEMI-CONDITIONAL predicted quantiles
   pred_semicond <- predict_GPD_semiconditional(Y=Y_train[(seq_len+1):length(Y_train)], interm_lvl=interm_lvl,
                                                thresh_quantiles=interm_quant_train[(seq_len+1):length(interm_quant_train)],
-                                               interm_quantiles_test=pred_interm[(seq_len+1):length(pred_interm)], quantiles_predict=quantiles_predict)
+                                               interm_quantiles_test=pred_interm[(seq_len+1):length(pred_interm)], prob_lvls_predict=prob_lvls_predict)
   # GROUND-TRUTH (y_test)
   pred_true <- true_quantiles_test
   # Prediction competitors
-  pred_exqar <- EXQAR_predict(fit_exqar, y_test, X=X_test, quantiles_predict, tol=1e-4, min_prop=0.3, return_infos=FALSE)
-  pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=quantiles_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
-  pred_exgam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=quantiles_predict,
+  pred_exqar <- EXQAR_predict(fit_exqar, y_test, X=X_test, prob_lvls_predict, tol=1e-4, min_prop=0.3, return_infos=FALSE)
+  pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=prob_lvls_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
+  pred_exgam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=prob_lvls_predict,
                                 intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
   
   #Final EQRN predictions on X_test
-  pred_eqrnn1 <- EQRN_predict_seq(fit_eqrn1, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
-  pred_eqrnn2 <- EQRN_predict_seq(fit_eqrn2, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
+  pred_eqrnn1 <- EQRN_predict_seq(fit_eqrn1, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
+  pred_eqrnn2 <- EQRN_predict_seq(fit_eqrn2, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
   
   # Compute losses for desired predicted quantiles
-  RMSEs_eqrnn1 <- sqrt(multilevel_MSE(pred_true,pred_eqrnn1,quantiles_predict,give_names=FALSE))
-  RMSEs_eqrnn2 <- sqrt(multilevel_MSE(pred_true,pred_eqrnn2,quantiles_predict,give_names=FALSE))
-  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,quantiles_predict,give_names=FALSE))
-  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,quantiles_predict,give_names=FALSE))
-  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,quantiles_predict,give_names=FALSE))
-  RMSEs_exqar <- sqrt(multilevel_MSE(pred_true,pred_exqar,quantiles_predict,give_names=FALSE))
-  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,quantiles_predict,give_names=FALSE))
-  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_exgam,quantiles_predict,give_names=FALSE))
+  RMSEs_eqrnn1 <- sqrt(multilevel_MSE(pred_true,pred_eqrnn1,prob_lvls_predict,give_names=FALSE))
+  RMSEs_eqrnn2 <- sqrt(multilevel_MSE(pred_true,pred_eqrnn2,prob_lvls_predict,give_names=FALSE))
+  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,prob_lvls_predict,give_names=FALSE))
+  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,prob_lvls_predict,give_names=FALSE))
+  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,prob_lvls_predict,give_names=FALSE))
+  RMSEs_exqar <- sqrt(multilevel_MSE(pred_true,pred_exqar,prob_lvls_predict,give_names=FALSE))
+  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,prob_lvls_predict,give_names=FALSE))
+  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_exgam,prob_lvls_predict,give_names=FALSE))
   
-  Q_lvls <- if(factorize){as_factor(roundm(quantiles_predict,4))}else{quantiles_predict}
+  Q_lvls <- if(factorize){as_factor(roundm(prob_lvls_predict,4))}else{prob_lvls_predict}
   
   met_names <- c("Uncond", "Semi-cond", "GRF", "EXQAR", "EGAM", "GBEX", names_EQRN[2], names_EQRN[1])
   
@@ -213,32 +213,32 @@ plot_rmse_quantile_comp_ts <- function(fit_eqrn1, fit_eqrn2, fit_grf, fit_exqar,
     
   }else{
     # Compute metrics for desired predicted quantiles
-    bias_eqrnn1 <- multilevel_pred_bias(pred_true, pred_eqrnn1, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_eqrnn2 <- multilevel_pred_bias(pred_true, pred_eqrnn2, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_grf <- multilevel_pred_bias(pred_true, pred_grf_test, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_unc <- multilevel_pred_bias(pred_true, pred_unc$predictions, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_semicond <- multilevel_pred_bias(pred_true, pred_semicond$predictions, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_exqar <- multilevel_pred_bias(pred_true, pred_exqar, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_gbex <- multilevel_pred_bias(pred_true, pred_gbex, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_exgam <- multilevel_pred_bias(pred_true, pred_exgam, quantiles_predict, square_bias=FALSE, give_names=FALSE)
+    bias_eqrnn1 <- multilevel_pred_bias(pred_true, pred_eqrnn1, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_eqrnn2 <- multilevel_pred_bias(pred_true, pred_eqrnn2, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_grf <- multilevel_pred_bias(pred_true, pred_grf_test, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_unc <- multilevel_pred_bias(pred_true, pred_unc$predictions, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_semicond <- multilevel_pred_bias(pred_true, pred_semicond$predictions, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_exqar <- multilevel_pred_bias(pred_true, pred_exqar, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_gbex <- multilevel_pred_bias(pred_true, pred_gbex, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_exgam <- multilevel_pred_bias(pred_true, pred_exgam, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
     
-    rstd_eqrnn1 <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn1, quantiles_predict, give_names=FALSE))
-    rstd_eqrnn2 <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn2, quantiles_predict, give_names=FALSE))
-    rstd_grf <- sqrt(multilevel_resid_var(pred_true, pred_grf_test, quantiles_predict, give_names=FALSE))
-    rstd_unc <- sqrt(multilevel_resid_var(pred_true, pred_unc$predictions, quantiles_predict, give_names=FALSE))
-    rstd_semicond <- sqrt(multilevel_resid_var(pred_true, pred_semicond$predictions, quantiles_predict, give_names=FALSE))
-    rstd_exqar <- sqrt(multilevel_resid_var(pred_true, pred_exqar, quantiles_predict, give_names=FALSE))
-    rstd_gbex <- sqrt(multilevel_resid_var(pred_true, pred_gbex, quantiles_predict, give_names=FALSE))
-    rstd_exgam <- sqrt(multilevel_resid_var(pred_true, pred_exgam, quantiles_predict, give_names=FALSE))
+    rstd_eqrnn1 <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn1, prob_lvls_predict, give_names=FALSE))
+    rstd_eqrnn2 <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn2, prob_lvls_predict, give_names=FALSE))
+    rstd_grf <- sqrt(multilevel_resid_var(pred_true, pred_grf_test, prob_lvls_predict, give_names=FALSE))
+    rstd_unc <- sqrt(multilevel_resid_var(pred_true, pred_unc$predictions, prob_lvls_predict, give_names=FALSE))
+    rstd_semicond <- sqrt(multilevel_resid_var(pred_true, pred_semicond$predictions, prob_lvls_predict, give_names=FALSE))
+    rstd_exqar <- sqrt(multilevel_resid_var(pred_true, pred_exqar, prob_lvls_predict, give_names=FALSE))
+    rstd_gbex <- sqrt(multilevel_resid_var(pred_true, pred_gbex, prob_lvls_predict, give_names=FALSE))
+    rstd_exgam <- sqrt(multilevel_resid_var(pred_true, pred_exgam, prob_lvls_predict, give_names=FALSE))
     
-    Rsqr_eqrnn1 <- multilevel_R_squared(pred_true, pred_eqrnn1, quantiles_predict, give_names=FALSE)
-    Rsqr_eqrnn2 <- multilevel_R_squared(pred_true, pred_eqrnn2, quantiles_predict, give_names=FALSE)
-    Rsqr_grf <- multilevel_R_squared(pred_true, pred_grf_test, quantiles_predict, give_names=FALSE)
-    Rsqr_unc <- multilevel_R_squared(pred_true, pred_unc$predictions, quantiles_predict, give_names=FALSE)
-    Rsqr_semicond <- multilevel_R_squared(pred_true, pred_semicond$predictions, quantiles_predict, give_names=FALSE)
-    Rsqr_exqar <- multilevel_R_squared(pred_true, pred_exqar, quantiles_predict, give_names=FALSE)
-    Rsqr_gbex <- multilevel_R_squared(pred_true, pred_gbex, quantiles_predict, give_names=FALSE)
-    Rsqr_exgam <- multilevel_R_squared(pred_true, pred_exgam, quantiles_predict, give_names=FALSE)
+    Rsqr_eqrnn1 <- multilevel_R_squared(pred_true, pred_eqrnn1, prob_lvls_predict, give_names=FALSE)
+    Rsqr_eqrnn2 <- multilevel_R_squared(pred_true, pred_eqrnn2, prob_lvls_predict, give_names=FALSE)
+    Rsqr_grf <- multilevel_R_squared(pred_true, pred_grf_test, prob_lvls_predict, give_names=FALSE)
+    Rsqr_unc <- multilevel_R_squared(pred_true, pred_unc$predictions, prob_lvls_predict, give_names=FALSE)
+    Rsqr_semicond <- multilevel_R_squared(pred_true, pred_semicond$predictions, prob_lvls_predict, give_names=FALSE)
+    Rsqr_exqar <- multilevel_R_squared(pred_true, pred_exqar, prob_lvls_predict, give_names=FALSE)
+    Rsqr_gbex <- multilevel_R_squared(pred_true, pred_gbex, prob_lvls_predict, give_names=FALSE)
+    Rsqr_exgam <- multilevel_R_squared(pred_true, pred_exgam, prob_lvls_predict, give_names=FALSE)
     
     Rbv_names <- c("Quantile R squared", "Bias", "Residual standard deviation")
     
@@ -251,7 +251,7 @@ plot_rmse_quantile_comp_ts <- function(fit_eqrn1, fit_eqrn2, fit_grf, fit_exqar,
                          GBEX=c(Rsqr_gbex,bias_gbex,rstd_gbex),
                          EQRN2=c(Rsqr_eqrnn2,bias_eqrnn2,rstd_eqrnn2),
                          EQRN1=c(Rsqr_eqrnn1,bias_eqrnn1,rstd_eqrnn1),
-                         metric=factor(rep(Rbv_names, each=nb_quantiles_predict), levels=Rbv_names)) %>%
+                         metric=factor(rep(Rbv_names, each=nb_prob_lvls_predict), levels=Rbv_names)) %>%
       rename_with(~str_replace(., "Semi_cond", "Semi-cond")) %>%
       rename_with(~str_replace(., "EQRN2", names_EQRN[2])) %>%
       rename_with(~str_replace(., "EQRN1", names_EQRN[1])) %>%
@@ -602,55 +602,55 @@ plot_series_comparison_sim <- function(Y, X){
 
 
 
-plot_error_quantile_ts_old <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X_test, y_test, quantiles_predict, pred_interm,
+plot_error_quantile_ts_old <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X_test, y_test, prob_lvls_predict, pred_interm,
                                        interm_lvl, interm_quant_train, true_quantiles_test, factorize=TRUE, test_data="other", pred_interm_c=pred_interm){
   
   ntest <- nrow(X_test)
-  nb_quantiles_predict <- length(quantiles_predict)
+  nb_prob_lvls_predict <- length(prob_lvls_predict)
   #lagged datasets for competitor methods
   lagged_test <- lagged_features(X=cbind(y_test,X_test), max_lag=fit_eqrn$seq_len, drop_present=TRUE)
   laged_interm_q_test <- pred_interm_c[(fit_eqrn$seq_len+1):length(pred_interm_c), , drop=F]
   #High quantile prediction with GRF
-  pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = quantiles_predict)$predictions
+  pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = prob_lvls_predict)$predictions
   # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = Y_train, ntest = nrow(true_quantiles_test))
+  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = Y_train, ntest = nrow(true_quantiles_test))
   # SEMI-CONDITIONAL predicted quantiles
   pred_semicond <- predict_GPD_semiconditional(Y=Y_train[(seq_len+1):length(Y_train)], interm_lvl=interm_lvl,
                                                thresh_quantiles=interm_quant_train[(seq_len+1):length(interm_quant_train)],
-                                               interm_quantiles_test=pred_interm[(seq_len+1):length(pred_interm)], quantiles_predict=quantiles_predict)
+                                               interm_quantiles_test=pred_interm[(seq_len+1):length(pred_interm)], prob_lvls_predict=prob_lvls_predict)
   # GROUND-TRUTH (y_test)
   pred_true <- true_quantiles_test
   # Prediction GBEX
-  pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=quantiles_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
-  pred_exgam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=quantiles_predict,
+  pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=prob_lvls_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
+  pred_exgam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=prob_lvls_predict,
                                 intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
   
   #Final EQRN predictions on X_test
-  pred_eqrnn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
+  pred_eqrnn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
   
   # Compute losses for desired predicted quantiles
-  MAEs_eqrnn <- multilevel_MAE(pred_true,pred_eqrnn,quantiles_predict,give_names=FALSE)
-  RMSEs_eqrnn <- sqrt(multilevel_MSE(pred_true,pred_eqrnn,quantiles_predict,give_names=FALSE))
-  MAEs_grf <- multilevel_MAE(pred_true,pred_grf_test,quantiles_predict,give_names=FALSE)
-  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,quantiles_predict,give_names=FALSE))
-  MAEs_unc <- multilevel_MAE(pred_true,pred_unc$predictions,quantiles_predict,give_names=FALSE)
-  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,quantiles_predict,give_names=FALSE))
-  MAEs_semicond <- multilevel_MAE(pred_true,pred_semicond$predictions,quantiles_predict,give_names=FALSE)
-  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,quantiles_predict,give_names=FALSE))
-  MAEs_gbex <- multilevel_MAE(pred_true,pred_gbex,quantiles_predict,give_names=FALSE)
-  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,quantiles_predict,give_names=FALSE))
-  MAEs_exgam <- multilevel_MAE(pred_true,pred_exgam,quantiles_predict,give_names=FALSE)
-  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_exgam,quantiles_predict,give_names=FALSE))
+  MAEs_eqrnn <- multilevel_MAE(pred_true,pred_eqrnn,prob_lvls_predict,give_names=FALSE)
+  RMSEs_eqrnn <- sqrt(multilevel_MSE(pred_true,pred_eqrnn,prob_lvls_predict,give_names=FALSE))
+  MAEs_grf <- multilevel_MAE(pred_true,pred_grf_test,prob_lvls_predict,give_names=FALSE)
+  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,prob_lvls_predict,give_names=FALSE))
+  MAEs_unc <- multilevel_MAE(pred_true,pred_unc$predictions,prob_lvls_predict,give_names=FALSE)
+  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,prob_lvls_predict,give_names=FALSE))
+  MAEs_semicond <- multilevel_MAE(pred_true,pred_semicond$predictions,prob_lvls_predict,give_names=FALSE)
+  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,prob_lvls_predict,give_names=FALSE))
+  MAEs_gbex <- multilevel_MAE(pred_true,pred_gbex,prob_lvls_predict,give_names=FALSE)
+  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,prob_lvls_predict,give_names=FALSE))
+  MAEs_exgam <- multilevel_MAE(pred_true,pred_exgam,prob_lvls_predict,give_names=FALSE)
+  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_exgam,prob_lvls_predict,give_names=FALSE))
   
   if(factorize){
-    df_rmse <- data.frame(Quantile=as_factor(roundm(quantiles_predict,4)), Uncond=RMSEs_unc, Semi_cond=RMSEs_semicond,
+    df_rmse <- data.frame(Quantile=as_factor(roundm(prob_lvls_predict,4)), Uncond=RMSEs_unc, Semi_cond=RMSEs_semicond,
                           GRF=RMSEs_grf, gpd_GAM=RMSEs_exgam, gbex=RMSEs_gbex, EQRN=RMSEs_eqrnn)
-    df_mae <- data.frame(Quantile=as_factor(roundm(quantiles_predict,4)), Uncond=MAEs_unc, Semi_cond=MAEs_semicond,
+    df_mae <- data.frame(Quantile=as_factor(roundm(prob_lvls_predict,4)), Uncond=MAEs_unc, Semi_cond=MAEs_semicond,
                          GRF=MAEs_grf, gpd_GAM=MAEs_exgam, gbex=MAEs_gbex, EQRN=MAEs_eqrnn)
   } else {
-    df_rmse <- data.frame(Quantile=quantiles_predict, Uncond=RMSEs_unc, Semi_cond=RMSEs_semicond,
+    df_rmse <- data.frame(Quantile=prob_lvls_predict, Uncond=RMSEs_unc, Semi_cond=RMSEs_semicond,
                           GRF=RMSEs_grf, gpd_GAM=RMSEs_exgam, gbex=RMSEs_gbex, EQRN=RMSEs_eqrnn)
-    df_mae <- data.frame(Quantile=quantiles_predict, Uncond=MAEs_unc, Semi_cond=MAEs_semicond,
+    df_mae <- data.frame(Quantile=prob_lvls_predict, Uncond=MAEs_unc, Semi_cond=MAEs_semicond,
                          GRF=MAEs_grf, gpd_GAM=MAEs_exgam, gbex=MAEs_gbex, EQRN=MAEs_eqrnn)
   }
   
@@ -681,12 +681,12 @@ plot_error_quantile_ts_old <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_
 
 
 
-plot_rmse_quantile_comp_ts_old <- function(fit_eqrn1, fit_eqrn2, fit_grf, fit_gbex, fit_egam, Y_train, X_test, y_test, quantiles_predict, pred_interm,
+plot_rmse_quantile_comp_ts_old <- function(fit_eqrn1, fit_eqrn2, fit_grf, fit_gbex, fit_egam, Y_train, X_test, y_test, prob_lvls_predict, pred_interm,
                                            interm_lvl, interm_quant_train, true_quantiles_test, factorize=TRUE, test_data="other", pred_interm_c=pred_interm,
                                            names_EQRN=c("EQRN_1","EQRN_2"), legend.position="bottom", crop_obs=0, bias_variance=FALSE, crop_Rbv=c(0,0,0)){
   
   ntest <- nrow(X_test)
-  nb_quantiles_predict <- length(quantiles_predict)
+  nb_prob_lvls_predict <- length(prob_lvls_predict)
   if(fit_eqrn1$seq_len!=fit_eqrn2$seq_len){
     stop("Unfair comparison due to different eqrnn 'seq_len' in 'plot_error_quantile_comp_ts'.")
   }
@@ -694,34 +694,34 @@ plot_rmse_quantile_comp_ts_old <- function(fit_eqrn1, fit_eqrn2, fit_grf, fit_gb
   lagged_test <- lagged_features(X=cbind(y_test,X_test), max_lag=fit_eqrn1$seq_len, drop_present=TRUE)
   laged_interm_q_test <- pred_interm_c[(fit_eqrn1$seq_len+1):length(pred_interm_c), , drop=F]
   #High quantile prediction with GRF
-  pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = quantiles_predict)$predictions
+  pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = prob_lvls_predict)$predictions
   # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = Y_train, ntest = nrow(true_quantiles_test))
+  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = Y_train, ntest = nrow(true_quantiles_test))
   # SEMI-CONDITIONAL predicted quantiles
   pred_semicond <- predict_GPD_semiconditional(Y=Y_train[(seq_len+1):length(Y_train)], interm_lvl=interm_lvl,
                                                thresh_quantiles=interm_quant_train[(seq_len+1):length(interm_quant_train)],
-                                               interm_quantiles_test=pred_interm[(seq_len+1):length(pred_interm)], quantiles_predict=quantiles_predict)
+                                               interm_quantiles_test=pred_interm[(seq_len+1):length(pred_interm)], prob_lvls_predict=prob_lvls_predict)
   # GROUND-TRUTH (y_test)
   pred_true <- true_quantiles_test
   # Prediction GBEX
-  pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=quantiles_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
-  pred_exgam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=quantiles_predict,
+  pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=prob_lvls_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
+  pred_exgam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=prob_lvls_predict,
                                 intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
   
   #Final EQRN predictions on X_test
-  pred_eqrnn1 <- EQRN_predict_seq(fit_eqrn1, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
-  pred_eqrnn2 <- EQRN_predict_seq(fit_eqrn2, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
+  pred_eqrnn1 <- EQRN_predict_seq(fit_eqrn1, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
+  pred_eqrnn2 <- EQRN_predict_seq(fit_eqrn2, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)
   
   # Compute losses for desired predicted quantiles
-  RMSEs_eqrnn1 <- sqrt(multilevel_MSE(pred_true,pred_eqrnn1,quantiles_predict,give_names=FALSE))
-  RMSEs_eqrnn2 <- sqrt(multilevel_MSE(pred_true,pred_eqrnn2,quantiles_predict,give_names=FALSE))
-  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,quantiles_predict,give_names=FALSE))
-  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,quantiles_predict,give_names=FALSE))
-  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,quantiles_predict,give_names=FALSE))
-  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,quantiles_predict,give_names=FALSE))
-  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_exgam,quantiles_predict,give_names=FALSE))
+  RMSEs_eqrnn1 <- sqrt(multilevel_MSE(pred_true,pred_eqrnn1,prob_lvls_predict,give_names=FALSE))
+  RMSEs_eqrnn2 <- sqrt(multilevel_MSE(pred_true,pred_eqrnn2,prob_lvls_predict,give_names=FALSE))
+  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,prob_lvls_predict,give_names=FALSE))
+  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,prob_lvls_predict,give_names=FALSE))
+  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,prob_lvls_predict,give_names=FALSE))
+  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,prob_lvls_predict,give_names=FALSE))
+  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_exgam,prob_lvls_predict,give_names=FALSE))
   
-  Q_lvls <- if(factorize){as_factor(roundm(quantiles_predict,4))}else{quantiles_predict}
+  Q_lvls <- if(factorize){as_factor(roundm(prob_lvls_predict,4))}else{prob_lvls_predict}
   
   met_names <- c("Uncond", "Semi-cond", "GRF", "EGAM", "GBEX", names_EQRN[2], names_EQRN[1])
   df_rmse <- data.frame(Quantile=Q_lvls, Uncond=RMSEs_unc, Semi_cond=RMSEs_semicond,
@@ -752,29 +752,29 @@ plot_rmse_quantile_comp_ts_old <- function(fit_eqrn1, fit_eqrn2, fit_grf, fit_gb
     
   }else{
     # Compute metrics for desired predicted quantiles
-    bias_eqrnn1 <- multilevel_pred_bias(pred_true, pred_eqrnn1, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_eqrnn2 <- multilevel_pred_bias(pred_true, pred_eqrnn2, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_grf <- multilevel_pred_bias(pred_true, pred_grf_test, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_unc <- multilevel_pred_bias(pred_true, pred_unc$predictions, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_semicond <- multilevel_pred_bias(pred_true, pred_semicond$predictions, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_gbex <- multilevel_pred_bias(pred_true, pred_gbex, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_exgam <- multilevel_pred_bias(pred_true, pred_exgam, quantiles_predict, square_bias=FALSE, give_names=FALSE)
+    bias_eqrnn1 <- multilevel_pred_bias(pred_true, pred_eqrnn1, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_eqrnn2 <- multilevel_pred_bias(pred_true, pred_eqrnn2, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_grf <- multilevel_pred_bias(pred_true, pred_grf_test, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_unc <- multilevel_pred_bias(pred_true, pred_unc$predictions, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_semicond <- multilevel_pred_bias(pred_true, pred_semicond$predictions, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_gbex <- multilevel_pred_bias(pred_true, pred_gbex, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_exgam <- multilevel_pred_bias(pred_true, pred_exgam, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
     
-    rstd_eqrnn1 <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn1, quantiles_predict, give_names=FALSE))
-    rstd_eqrnn2 <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn2, quantiles_predict, give_names=FALSE))
-    rstd_grf <- sqrt(multilevel_resid_var(pred_true, pred_grf_test, quantiles_predict, give_names=FALSE))
-    rstd_unc <- sqrt(multilevel_resid_var(pred_true, pred_unc$predictions, quantiles_predict, give_names=FALSE))
-    rstd_semicond <- sqrt(multilevel_resid_var(pred_true, pred_semicond$predictions, quantiles_predict, give_names=FALSE))
-    rstd_gbex <- sqrt(multilevel_resid_var(pred_true, pred_gbex, quantiles_predict, give_names=FALSE))
-    rstd_exgam <- sqrt(multilevel_resid_var(pred_true, pred_exgam, quantiles_predict, give_names=FALSE))
+    rstd_eqrnn1 <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn1, prob_lvls_predict, give_names=FALSE))
+    rstd_eqrnn2 <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn2, prob_lvls_predict, give_names=FALSE))
+    rstd_grf <- sqrt(multilevel_resid_var(pred_true, pred_grf_test, prob_lvls_predict, give_names=FALSE))
+    rstd_unc <- sqrt(multilevel_resid_var(pred_true, pred_unc$predictions, prob_lvls_predict, give_names=FALSE))
+    rstd_semicond <- sqrt(multilevel_resid_var(pred_true, pred_semicond$predictions, prob_lvls_predict, give_names=FALSE))
+    rstd_gbex <- sqrt(multilevel_resid_var(pred_true, pred_gbex, prob_lvls_predict, give_names=FALSE))
+    rstd_exgam <- sqrt(multilevel_resid_var(pred_true, pred_exgam, prob_lvls_predict, give_names=FALSE))
     
-    Rsqr_eqrnn1 <- multilevel_R_squared(pred_true, pred_eqrnn1, quantiles_predict, give_names=FALSE)
-    Rsqr_eqrnn2 <- multilevel_R_squared(pred_true, pred_eqrnn2, quantiles_predict, give_names=FALSE)
-    Rsqr_grf <- multilevel_R_squared(pred_true, pred_grf_test, quantiles_predict, give_names=FALSE)
-    Rsqr_unc <- multilevel_R_squared(pred_true, pred_unc$predictions, quantiles_predict, give_names=FALSE)
-    Rsqr_semicond <- multilevel_R_squared(pred_true, pred_semicond$predictions, quantiles_predict, give_names=FALSE)
-    Rsqr_gbex <- multilevel_R_squared(pred_true, pred_gbex, quantiles_predict, give_names=FALSE)
-    Rsqr_exgam <- multilevel_R_squared(pred_true, pred_exgam, quantiles_predict, give_names=FALSE)
+    Rsqr_eqrnn1 <- multilevel_R_squared(pred_true, pred_eqrnn1, prob_lvls_predict, give_names=FALSE)
+    Rsqr_eqrnn2 <- multilevel_R_squared(pred_true, pred_eqrnn2, prob_lvls_predict, give_names=FALSE)
+    Rsqr_grf <- multilevel_R_squared(pred_true, pred_grf_test, prob_lvls_predict, give_names=FALSE)
+    Rsqr_unc <- multilevel_R_squared(pred_true, pred_unc$predictions, prob_lvls_predict, give_names=FALSE)
+    Rsqr_semicond <- multilevel_R_squared(pred_true, pred_semicond$predictions, prob_lvls_predict, give_names=FALSE)
+    Rsqr_gbex <- multilevel_R_squared(pred_true, pred_gbex, prob_lvls_predict, give_names=FALSE)
+    Rsqr_exgam <- multilevel_R_squared(pred_true, pred_exgam, prob_lvls_predict, give_names=FALSE)
     
     Rbv_names <- c("Quantile R squared", "Bias", "Residual standard deviation")
     
@@ -786,7 +786,7 @@ plot_rmse_quantile_comp_ts_old <- function(fit_eqrn1, fit_eqrn2, fit_grf, fit_gb
                          GBEX=c(Rsqr_gbex,bias_gbex,rstd_gbex),
                          EQRN2=c(Rsqr_eqrnn2,bias_eqrnn2,rstd_eqrnn2),
                          EQRN1=c(Rsqr_eqrnn1,bias_eqrnn1,rstd_eqrnn1),
-                         metric=factor(rep(Rbv_names, each=nb_quantiles_predict), levels=Rbv_names)) %>%
+                         metric=factor(rep(Rbv_names, each=nb_prob_lvls_predict), levels=Rbv_names)) %>%
       rename_with(~str_replace(., "Semi_cond", "Semi-cond")) %>%
       rename_with(~str_replace(., "EQRN2", names_EQRN[2])) %>%
       rename_with(~str_replace(., "EQRN1", names_EQRN[1])) %>%

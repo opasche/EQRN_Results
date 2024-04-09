@@ -40,7 +40,7 @@ seasonal_hetero=0
 # PARAM: General
 intermediate_method <- "qrn"#"qrn""grf""oracle"
 interm_lvl = 0.8
-quantiles_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
+prob_lvls_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
 
 # Params: QRNN
 interm_path <- "data/simulations/ts_intermediate_quantile_best/"
@@ -123,7 +123,7 @@ if(!file.exists(paste0(interm_path,"Data_backup.rds"))){
 }
 rm(data_save)
 
-true_quantiles <- series_theoretical_quantiles(quantiles_predict, dat, Y_distr=Y_distr)
+true_quantiles <- series_theoretical_quantiles(prob_lvls_predict, dat, Y_distr=Y_distr)
 seq_len <- par_qrn$seq_len
 X_train <- dat$X[1:n, , drop=F]
 y_train <- dat$Y[1:n]

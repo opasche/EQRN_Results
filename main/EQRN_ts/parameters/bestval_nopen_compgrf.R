@@ -29,7 +29,7 @@ seasonal_hetero=0
 intermediate_method <- "qrn"#"qrn""oracle"
 interm_method_competitors <- "grf"#"qrn""grf""oracle"
 interm_lvl = 0.8
-quantiles_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
+prob_lvls_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
 
 # Params: QRNN
 interm_path <- "data/simulations/ts_intermediate_quantile_best/"

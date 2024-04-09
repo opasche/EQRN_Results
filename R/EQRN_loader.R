@@ -1,3 +1,7 @@
+# This script loads recursively the EQRN dependencies and routines for the './main/' scipts
+# including the snapshot of the EQRN package, simulation functions and plotting helpers.
+# Olivier PASCHE, 2022
+
 library(tidyverse)
 library(evd)
 library(ismev)

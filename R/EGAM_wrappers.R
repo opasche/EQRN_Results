@@ -1,3 +1,8 @@
+# Wrappers around the evgam EQ model for EQRN-like UI.
+# They extend the evgam approach to use the conditional intermediate quantiles
+# both as a varying threshold and as an accuracy-improving covariate.
+# Olivier PASCHE, 2022
+
 # Dependencies
 library(tidyverse)
 library(evgam)
@@ -7,7 +12,6 @@ library(sfsmisc)
 # Functions
 fit_gpd_gam <- function(X, y, intermediate_quantiles, interm_lvl=0.8, model_shape=FALSE,
                         intermediate_q_feature=FALSE, scale_features=FALSE, ...) {
-  ## fit an extreme GAM
   
   data_excesses <- get_excesses(X=X, y=y, quantiles=intermediate_quantiles,
                                 intermediate_q_feature=intermediate_q_feature,
@@ -24,9 +28,7 @@ fit_gpd_gam <- function(X, y, intermediate_quantiles, interm_lvl=0.8, model_shap
     Y_excesses = Y_excesses
   )
   
-  
   # Prepare formula for evgam
-  
   fmla_gpd <- list(
     sfsmisc::wrapFormula(
       Y_excesses ~ .,
@@ -53,6 +55,7 @@ fit_gpd_gam <- function(X, y, intermediate_quantiles, interm_lvl=0.8, model_shap
   class = "gpd_gam"
   )
 }
+
 
 predict_gpd_gam <- function(fitted_gpd_gam, X_test, to_predict=c(0.95, 0.99),
                             intermediate_quantiles, interm_lvl=fitted_gpd_gam$interm_lvl) {
@@ -94,9 +97,9 @@ predict_gpd_gam <- function(fitted_gpd_gam, X_test, to_predict=c(0.95, 0.99),
   if(length(to_predict)==1){
     return(GPD_quantiles(to_predict, interm_lvl, intermediate_quantiles, pred_params$sigma, pred_params$xi))
   } else if(length(to_predict)>1){
-    nb_quantiles_predict <- length(to_predict)
-    egam_quantiles <- matrix(as.double(NA), nrow=nrow(X_test), ncol=nb_quantiles_predict)
-    for(i in 1:nb_quantiles_predict){
+    nb_prob_lvls_predict <- length(to_predict)
+    egam_quantiles <- matrix(as.double(NA), nrow=nrow(X_test), ncol=nb_prob_lvls_predict)
+    for(i in 1:nb_prob_lvls_predict){
       egam_quantiles[,i] <- GPD_quantiles(to_predict[i], interm_lvl, intermediate_quantiles, pred_params$sigma, pred_params$xi)
     }
     return(egam_quantiles)
@@ -104,6 +107,13 @@ predict_gpd_gam <- function(fitted_gpd_gam, X_test, to_predict=c(0.95, 0.99),
     stop("Please provide a single value or 1D vector as to_predict in predict_gpd_gam")
   }
 }
+
+predict.gpd_gam <- function(fitted_gpd_gam, ...){
+  # The 'predict' method for class "gpd_gam".
+  # See 'predict_gpd_gam' for details.
+  return(predict_gpd_gam(fitted_gpd_gam, ...))
+}
+
 
 excess_probability_gpd_gam <- function(fitted_gpd_gam, val, X_test, intermediate_quantiles, interm_lvl=fitted_gpd_gam$interm_lvl,
                                        body_proba="default", proba_type=c("excess","cdf")){
@@ -138,5 +148,11 @@ excess_probability_gpd_gam <- function(fitted_gpd_gam, val, X_test, intermediate
   Probs <- GPD_excess_probability(val, sigma=pred_params$sigma, xi=pred_params$xi, interm_threshold=intermediate_quantiles,
                                   threshold_p=interm_lvl, body_proba=body_proba, proba_type=proba_type)
   return(c(Probs))
+}
+
+excess_probability.gpd_gam <- function(fitted_gpd_gam, ...){
+  # The 'excess_probability' prediction method for class "gpd_gam".
+  # See 'excess_probability_gpd_gam' for details.
+  return(excess_probability_gpd_gam(fitted_gpd_gam, ...))
 }
 

@@ -33,7 +33,7 @@ prop_valid <- 1/4
 # PARAM: General
 intermediate_method <- "qrn"#"qrn""grf""oracle"
 interm_lvl = 0.8
-quantiles_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
+prob_lvls_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
 
 # Params: QRN
 interm_path <- "data/Switzerland/qrn_intermediate_quantile_best/"

@@ -462,7 +462,7 @@ generate_iid_data <- function(n, distr = c("gaussian", "log_normal", "student_t"
   return(Y)
 }
 
-generate_iid_quantile <- function(quantiles_predict,
+generate_iid_quantile <- function(prob_lvls_predict,
                                   distr = c("gaussian", "log_normal", "student_t"),
                                   df = 2){
   ## numeric_vector character numeric -> numeric_vector
@@ -472,15 +472,15 @@ generate_iid_quantile <- function(quantiles_predict,
   
   if (distr == "gaussian"){
     
-    q <- qnorm(p = quantiles_predict)
+    q <- qnorm(p = prob_lvls_predict)
     
   } else if (distr == "log_normal"){
     
-    q <- qlnorm(p = quantiles_predict)
+    q <- qlnorm(p = prob_lvls_predict)
     
   } else if (distr == "student_t"){
     
-    q <- qt(p = quantiles_predict, df = df)
+    q <- qt(p = prob_lvls_predict, df = df)
     
   }
   

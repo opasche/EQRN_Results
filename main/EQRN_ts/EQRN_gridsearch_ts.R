@@ -38,7 +38,7 @@ seasonal_hetero=0
 # PARAM: General
 intermediate_method <- "qrn"#"qrn""oracle"
 interm_lvl = 0.8
-quantiles_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
+prob_lvls_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
 
 # Params: QRNN
 interm_path <- "data/simulations/ts_intermediate_quantile_best/"
@@ -132,7 +132,7 @@ if(!file.exists(paste0(interm_path,"Data_backup.rds"))){
 }
 rm(data_save)
 
-true_quantiles <- series_theoretical_quantiles(quantiles_predict, dat, Y_distr=Y_distr)
+true_quantiles <- series_theoretical_quantiles(prob_lvls_predict, dat, Y_distr=Y_distr)
 seq_len <- par_qrn$seq_len
 X_train <- dat$X[1:n, , drop=F]
 y_train <- dat$Y[1:n]
@@ -175,11 +175,11 @@ pred_interm <- thresh_quant_all[(n+n_valid+1-par_qrn$seq_len):(n+n_valid+ntest),
 ## ======== For TESTING ========
 
 # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = y_train_all, ntest = ntest)
+pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = y_train_all, ntest = ntest)
 
 # SEMI-CONDITIONAL predicted quantiles
 pred_semicond <- predict_GPD_semiconditional(Y=y_train[(seq_len+1):n], interm_lvl=interm_lvl, thresh_quantiles=intermediate_quantiles[(seq_len+1):n],
-                                             interm_quantiles_test=pred_interm[seq_len+(1:ntest)], quantiles_predict=quantiles_predict)
+                                             interm_quantiles_test=pred_interm[seq_len+(1:ntest)], prob_lvls_predict=prob_lvls_predict)
 
 # GROUND-TRUTH (y_test)
 pred_true <- true_quantiles_test
@@ -224,7 +224,7 @@ results_grid_fit <- foreach(params=grid_l, .errorhandling="remove", .combine=rbi
   ## ======== TESTING ========
   
   #Final EQRN predictions on X_test
-  pred_eqrn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)#[params$seq_len+(1:ntest)]
+  pred_eqrn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)#[params$seq_len+(1:ntest)]
   
   
   train_plot <- training_plot_eqrn(fit_eqrn, uncond_losses_interm)
@@ -235,8 +235,8 @@ results_grid_fit <- foreach(params=grid_l, .errorhandling="remove", .combine=rbi
   }
   
   # Compute losses for desired predicted quantiles
-  MSE_losses <- multilevel_MSE(pred_true, pred_eqrn, quantiles_predict, prefix="test_", give_names=TRUE)
-  MAE_losses <- multilevel_MAE(pred_true, pred_eqrn, quantiles_predict, prefix="test_", give_names=TRUE)
+  MSE_losses <- multilevel_MSE(pred_true, pred_eqrn, prob_lvls_predict, prefix="test_", give_names=TRUE)
+  MAE_losses <- multilevel_MAE(pred_true, pred_eqrn, prob_lvls_predict, prefix="test_", give_names=TRUE)
   
   #test_loss <- compute_EQRN_seq_GPDLoss(fit_eqrn, X_test, y_test, intermediate_quantiles=pred_interm, interm_lvl=interm_lvl)
   output <- c(unlist(params),

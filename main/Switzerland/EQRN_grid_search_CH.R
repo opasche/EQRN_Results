@@ -29,7 +29,7 @@ prop_valid <- 1/4
 # PARAM: General
 intermediate_method <- "qrn"
 interm_lvl = 0.8
-quantiles_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
+prob_lvls_predict = c(0.995,0.999,0.9995)#c(interm_lvl,0.995,0.999,0.9995)
 
 # Params: QRNN
 interm_path <- "data/Switzerland/qrn_intermediate_quantile_best/"
@@ -145,11 +145,11 @@ pred_interm <- thresh_quant_all[(n_train+n_valid+1-par_qrn$seq_len):(n_train+n_v
 ## ======== For TESTING ========
 
 # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = y_train_all, ntest = n_test)
+pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = y_train_all, ntest = n_test)
 
 # SEMI-CONDITIONAL predicted quantiles
 pred_semicond <- predict_GPD_semiconditional(Y=y_train[(seq_len+1):n_train], interm_lvl=interm_lvl, thresh_quantiles=intermediate_quantiles[(seq_len+1):n_train],
-                                             interm_quantiles_test=pred_interm[seq_len+(1:n_test)], quantiles_predict=quantiles_predict)
+                                             interm_quantiles_test=pred_interm[seq_len+(1:n_test)], prob_lvls_predict=prob_lvls_predict)
 
 # Unconditional parameters and losses (for comparison with EQRN fit)
 uncond_losses_fixed <- unconditional_train_valid_GPD_loss(Y_train=y_train[(seq_len+1):n_train], interm_lvl=interm_lvl, Y_valid=y_valid[seq_len+(1:n_valid)])
@@ -192,8 +192,8 @@ results_grid_fit <- foreach(params=grid_l, .errorhandling="remove", .combine=rbi
   ## ======== TESTING ========
   
   #Final EQRN predictions on X_valid and X_test
-  pred_eqrn_val <- EQRN_predict_seq(fit_eqrn, X_valid, y_valid, quantiles_predict, valid_quantiles, interm_lvl, crop_predictions=TRUE)
-  pred_eqrn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)#[params$seq_len+(1:n_test)]
+  pred_eqrn_val <- EQRN_predict_seq(fit_eqrn, X_valid, y_valid, prob_lvls_predict, valid_quantiles, interm_lvl, crop_predictions=TRUE)
+  pred_eqrn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)#[params$seq_len+(1:n_test)]
   
   
   train_plot <- training_plot_eqrn(fit_eqrn, uncond_losses_interm)
@@ -204,19 +204,19 @@ results_grid_fit <- foreach(params=grid_l, .errorhandling="remove", .combine=rbi
   }
   
   # Compute losses for desired predicted quantiles
-  nb_quantiles_predict <- length(quantiles_predict)
+  nb_prob_lvls_predict <- length(prob_lvls_predict)
   qPredErrs_v <- multilevel_q_pred_error(y=y_valid[seq_len+(1:n_valid)], Pred_Q=pred_eqrn_val,
-                                         proba_levels=quantiles_predict, prefix="valid_", na.rm=FALSE)#rep(as.double(NA), nb_quantiles_predict)
+                                         proba_levels=prob_lvls_predict, prefix="valid_", na.rm=FALSE)#rep(as.double(NA), nb_prob_lvls_predict)
   qPredErrs_t <- multilevel_q_pred_error(y=y_test[seq_len+(1:n_test)], Pred_Q=pred_eqrn,
-                                         proba_levels=quantiles_predict, prefix="test_", na.rm=FALSE)
+                                         proba_levels=prob_lvls_predict, prefix="test_", na.rm=FALSE)
   qlosses_v <- multilevel_q_loss(y=y_valid[seq_len+(1:n_valid)], Pred_Q=pred_eqrn_val,
-                                 proba_levels=quantiles_predict, prefix="valid_", na.rm=FALSE)
+                                 proba_levels=prob_lvls_predict, prefix="valid_", na.rm=FALSE)
   qlosses_t <- multilevel_q_loss(y=y_test[seq_len+(1:n_test)], Pred_Q=pred_eqrn,
-                                 proba_levels=quantiles_predict, prefix="test_", na.rm=FALSE)
+                                 proba_levels=prob_lvls_predict, prefix="test_", na.rm=FALSE)
   propb_v <- multilevel_prop_below(y=y_valid[seq_len+(1:n_valid)], Pred_Q=pred_eqrn_val,
-                                   proba_levels=quantiles_predict, prefix="valid_", na.rm=FALSE)
+                                   proba_levels=prob_lvls_predict, prefix="valid_", na.rm=FALSE)
   propb_t <- multilevel_prop_below(y=y_test[seq_len+(1:n_test)], Pred_Q=pred_eqrn,
-                                   proba_levels=quantiles_predict, prefix="test_", na.rm=FALSE)
+                                   proba_levels=prob_lvls_predict, prefix="test_", na.rm=FALSE)
   
   test_loss <- compute_EQRN_seq_GPDLoss(fit_eqrn, X_test, y_test, intermediate_quantiles=pred_interm, interm_lvl=interm_lvl)
   output <- c(unlist(params),

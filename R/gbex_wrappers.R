@@ -1,3 +1,7 @@
+# Wrappers around the gbex EQR model for EQRN-like UI.
+# They extend the gbex approach to use the conditional intermediate quantiles
+# as an accuracy-improving covariate.
+# Olivier PASCHE, 2022
 
 #devtools::install_github("JVelthoen/gbex")
 library(tidyverse)
@@ -14,8 +18,12 @@ gbex_fit <- function(X, y, intermediate_quantiles, interm_lvl, intermediate_q_fe
   X_scaling <- data_excesses$X_scaling
   fit_gbex <- gbex::gbex(y=Y_excesses, X=data.frame(X_feats_excesses), ...)
   
-  return(list(fit_gbex=fit_gbex, intermediate_q_feature=intermediate_q_feature, interm_lvl=interm_lvl, scale_features=scale_features, X_scaling=X_scaling))
+  gbex_obj <- list(fit_gbex=fit_gbex, intermediate_q_feature=intermediate_q_feature, 
+                   interm_lvl=interm_lvl, scale_features=scale_features, X_scaling=X_scaling)
+  class(gbex_obj) <- "gbex_eqr"
+  return(gbex_obj)
 }
+
 
 gbex_predict <- function(fitted_gbex, X_test, to_predict, intermediate_quantiles, interm_lvl=fitted_gbex$interm_lvl){
   
@@ -41,9 +49,9 @@ gbex_predict <- function(fitted_gbex, X_test, to_predict, intermediate_quantiles
   if(length(to_predict)==1){
     return(GPD_quantiles(to_predict, interm_lvl, intermediate_quantiles, pred_params$s, pred_params$g))
   } else if(length(to_predict)>1){
-    nb_quantiles_predict <- length(to_predict)
-    gbex_quantiles <- matrix(as.double(NA), nrow=nrow(X_test), ncol=nb_quantiles_predict)
-    for(i in 1:nb_quantiles_predict){
+    nb_prob_lvls_predict <- length(to_predict)
+    gbex_quantiles <- matrix(as.double(NA), nrow=nrow(X_test), ncol=nb_prob_lvls_predict)
+    for(i in 1:nb_prob_lvls_predict){
       gbex_quantiles[,i] <- GPD_quantiles(to_predict[i], interm_lvl, intermediate_quantiles, pred_params$s, pred_params$g)
     }
     return(gbex_quantiles)
@@ -51,6 +59,13 @@ gbex_predict <- function(fitted_gbex, X_test, to_predict, intermediate_quantiles
     stop("Please provide a single value or 1D vector as to_predict in gbex_predict")
   }
 }
+
+predict.gbex_eqr <- function(fitted_gbex, ...){
+  # The 'predict' method for class "gbex_eqr".
+  # See 'gbex_predict' for details.
+  return(gbex_predict(fitted_gbex, ...))
+}
+
 
 gbex_CV <- function(X, y, intermediate_quantiles, interm_lvl, intermediate_q_feature=FALSE, scale_features=FALSE,
                     num_folds=5, Bmax=500, grid_lambda_ratio=c(5,6,7,8,9,10), grid_depth=list(c(1,0),c(1,1),c(2,1),c(2,2),c(3,1),c(3,2),c(3,3)),
@@ -97,6 +112,7 @@ gbex_CV <- function(X, y, intermediate_quantiles, interm_lvl, intermediate_q_fea
               intermediate_q_feature=intermediate_q_feature, interm_lvl=interm_lvl, scale_features=scale_features, X_scaling=X_scaling))
 }
 
+
 gbex_excess_probability <- function(fitted_gbex, val, X_test, intermediate_quantiles, interm_lvl=fitted_gbex$interm_lvl,
                                     body_proba="default", proba_type=c("excess","cdf")){
   
@@ -115,5 +131,11 @@ gbex_excess_probability <- function(fitted_gbex, val, X_test, intermediate_quant
   Probs <- GPD_excess_probability(val, sigma=pred_params$s, xi=pred_params$g, interm_threshold=intermediate_quantiles,
                                   threshold_p=interm_lvl, body_proba=body_proba, proba_type=proba_type)
   return(c(Probs))
+}
+
+excess_probability.gbex_eqr <- function(fitted_gbex, ...){
+  # The 'excess_probability' prediction method for class "gbex_eqr".
+  # See 'gbex_excess_probability' for details.
+  return(gbex_excess_probability(fitted_gbex, ...))
 }
 

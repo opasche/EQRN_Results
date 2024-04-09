@@ -51,7 +51,7 @@ validation_plot_eqrn <- function(fit_eqrn, uncond_losses_interm, title=NULL, y_l
   return(train_plot)
 }
 
-plot_predictions_1D <- function(pred_eqrnn_test, pred_grf_test, pred_true, X_test, quantile_predicted){
+plot_predictions_1D <- function(pred_eqrnn_test, pred_grf_test, pred_true, X_test, prob_lvl_predicted){
   
   pred_plots <- list()
   for (j in 1:4) {
@@ -64,12 +64,12 @@ plot_predictions_1D <- function(pred_eqrnn_test, pred_grf_test, pred_true, X_tes
   }
   pred_plot <- ggpubr::ggarrange(plotlist=pred_plots, labels="AUTO", ncol=min(2,length(pred_plots)), nrow=2,
                                  common.legend=TRUE,legend="bottom", vjust=1.5, align="hv") %>%
-    ggpubr::annotate_figure(top=text_grob(paste0("Predictions (q=",quantile_predicted,")"), face="bold", size=14),
+    ggpubr::annotate_figure(top=text_grob(paste0("Predictions (q=",prob_lvl_predicted,")"), face="bold", size=14),
                             left=text_grob("Predictions", rot = 90))
   return(pred_plot)
 }
 
-residuals_boxplot_eqrn <- function(pred_eqrnn_test, pred_grf_test, pred_true, quantile_predicted){
+residuals_boxplot_eqrn <- function(pred_eqrnn_test, pred_grf_test, pred_true, prob_lvl_predicted){
   
   res_box <- data.frame(GRF=c(pred_grf_test-pred_true), EQRNN=c(pred_eqrnn_test-pred_true)) %>%
     tidyr::gather(key="Method", value="Value", factor_key=TRUE) %>% ggplot( aes(x=Method, y=Value, fill=Method)) +
@@ -93,11 +93,11 @@ residuals_boxplot_eqrn <- function(pred_eqrnn_test, pred_grf_test, pred_true, qu
     labs(x=NULL, y="Squared Residuals") +
     theme(legend.position="none", panel.grid.major.y = element_blank())
   resid_boxes <- ggpubr::ggarrange(res_box, abs_box, sq_box, labels=NULL, ncol=1, nrow=3) %>%
-    ggpubr::annotate_figure(top=text_grob(paste0("Quantile Residuals (q=",quantile_predicted,")"), face="bold", size=14))
+    ggpubr::annotate_figure(top=text_grob(paste0("Quantile Residuals (q=",prob_lvl_predicted,")"), face="bold", size=14))
   return(resid_boxes)
 }
 
-residuals_boxplot_eqrn2 <- function(pred_eqrnn_test, pred_grf_test, pred_gbex_test, pred_true, quantile_predicted){
+residuals_boxplot_eqrn2 <- function(pred_eqrnn_test, pred_grf_test, pred_gbex_test, pred_true, prob_lvl_predicted){
   
   res_box <- data.frame(GRF=c(pred_grf_test-pred_true), gbex=c(pred_gbex_test-pred_true),
                         EQRNN=c(pred_eqrnn_test-pred_true)) %>%
@@ -124,18 +124,18 @@ residuals_boxplot_eqrn2 <- function(pred_eqrnn_test, pred_grf_test, pred_gbex_te
     labs(x=NULL, y="Squared Residuals") +
     theme(legend.position="none", panel.grid.major.y = element_blank())
   resid_boxes <- ggpubr::ggarrange(res_box, abs_box, sq_box, labels=NULL, ncol=1, nrow=3) %>%
-    ggpubr::annotate_figure(top=text_grob(paste0("Quantile Residuals (q=",quantile_predicted,")"), face="bold", size=14))
+    ggpubr::annotate_figure(top=text_grob(paste0("Quantile Residuals (q=",prob_lvl_predicted,")"), face="bold", size=14))
   return(resid_boxes)
 }
 
 
-plot_predictions_vs_truth <- function(pred_eqrnn, pred_other, pred_semicond, pred_true, quantiles_predicted, name_other="GRF",
+plot_predictions_vs_truth <- function(pred_eqrnn, pred_other, pred_semicond, pred_true, prob_lvls_predicted, name_other="GRF",
                                       legend.position="bottom"){
   
-  nb_quantiles_predict <- length(quantiles_predicted)
+  nb_prob_lvls_predict <- length(prob_lvls_predicted)
   pred_vs_true_plots <- list()
   col_other <- if(is.na(my_palette_methods[name_other])){my_palette$red}else{my_palette_methods[[name_other]]}
-  for(i in 1:nb_quantiles_predict){
+  for(i in 1:nb_prob_lvls_predict){
     preds_df <- data.frame(Truth=pred_true[,i], Semi_cond=pred_semicond[,i], Other=pred_other[,i], EQRNN=pred_eqrnn[,i])
     preds_df <- preds_df %>% rename_with(~str_replace(., "Other", name_other))
     lims <- c(min(preds_df), max(preds_df))
@@ -151,7 +151,7 @@ plot_predictions_vs_truth <- function(pred_eqrnn, pred_other, pred_semicond, pre
       pred_vs_true_plots[[i]] <- pred_vs_true_plots[[i]] + labs(title=NULL, x=NULL, y=NULL, color=NULL)
     }else{
       pred_vs_true_plots[[i]] <- pred_vs_true_plots[[i]] +
-        labs(title=paste0(quantiles_predicted[i]*100,"% quantile"), x=NULL, y=NULL, color=NULL)
+        labs(title=paste0(prob_lvls_predicted[i]*100,"% quantile"), x=NULL, y=NULL, color=NULL)
     }
   }
   pred_vs_true_plot <- ggpubr::ggarrange(plotlist=pred_vs_true_plots, labels=NULL, ncol=min(3,length(pred_vs_true_plots)),
@@ -161,12 +161,12 @@ plot_predictions_vs_truth <- function(pred_eqrnn, pred_other, pred_semicond, pre
 }
 
 
-plot_predictions_vs_truth_solo <- function(pred_eqrnn, pred_semicond, pred_true, quantiles_predicted,
+plot_predictions_vs_truth_solo <- function(pred_eqrnn, pred_semicond, pred_true, prob_lvls_predicted,
                                            legend.position="bottom"){
   
-  nb_quantiles_predict <- length(quantiles_predicted)
+  nb_prob_lvls_predict <- length(prob_lvls_predicted)
   pred_vs_true_plots <- list()
-  for(i in 1:nb_quantiles_predict){
+  for(i in 1:nb_prob_lvls_predict){
     preds_df <- data.frame(Truth=pred_true[,i], Semi_cond=pred_semicond[,i], EQRNN=pred_eqrnn[,i])
     lims <- c(min(preds_df), max(preds_df))
     pred_vs_true_plots[[i]] <- preds_df %>%
@@ -181,7 +181,7 @@ plot_predictions_vs_truth_solo <- function(pred_eqrnn, pred_semicond, pred_true,
       pred_vs_true_plots[[i]] <- pred_vs_true_plots[[i]] + labs(title=NULL, x=NULL, y=NULL, color=NULL)
     }else{
       pred_vs_true_plots[[i]] <- pred_vs_true_plots[[i]] +
-        labs(title=paste0(quantiles_predicted[i]*100,"% quantile"), x=NULL, y=NULL, color=NULL)
+        labs(title=paste0(prob_lvls_predicted[i]*100,"% quantile"), x=NULL, y=NULL, color=NULL)
     }
   }
   pred_vs_true_plot <- ggpubr::ggarrange(plotlist=pred_vs_true_plots, labels=NULL, ncol=min(3,length(pred_vs_true_plots)),
@@ -217,12 +217,12 @@ plot_predictions_vs_truth_comp <- function(pred_eqrnn1, pred_eqrnn2, pred_other,
 }
 
 
-plot_predictions_vs_competitor <- function(pred_eqrnn, pred_comp, quantiles_predicted, name_comp="Competitor", xaxis=c("EQRN","competitor")){
+plot_predictions_vs_competitor <- function(pred_eqrnn, pred_comp, prob_lvls_predicted, name_comp="Competitor", xaxis=c("EQRN","competitor")){
   # 
   xaxis <- match.arg(xaxis)
-  nb_quantiles_predict <- length(quantiles_predicted)
+  nb_prob_lvls_predict <- length(prob_lvls_predicted)
   pred_vs_comp_plots <- list()
-  for(i in 1:nb_quantiles_predict){
+  for(i in 1:nb_prob_lvls_predict){
     preds_df <- data.frame(competitor=pred_comp[,i], EQRNN=pred_eqrnn[,i])
     lims <- c(min(preds_df), max(preds_df))
     if(xaxis=="competitor"){
@@ -233,7 +233,7 @@ plot_predictions_vs_competitor <- function(pred_eqrnn, pred_comp, quantiles_pred
     pred_vs_comp_plots[[i]] <- tmp_plt +
       geom_abline(intercept=0, slope=1, col="black", size=1) + geom_point() + coord_fixed() + theme(aspect.ratio=1) + 
       expand_limits(x=lims, y=lims) + scale_y_continuous(expand=c(0.02,0)) + scale_x_continuous(expand=c(0.02,0)) +
-      labs(title=paste0("Predicted ",quantiles_predicted[i]*100,"% quantile"), x=NULL, y=NULL, color=NULL)
+      labs(title=paste0("Predicted ",prob_lvls_predicted[i]*100,"% quantile"), x=NULL, y=NULL, color=NULL)
   }
   tmp_plt <- ggpubr::ggarrange(plotlist=pred_vs_comp_plots, labels="AUTO", ncol=min(3,length(pred_vs_comp_plots)),
                                common.legend=TRUE,legend="bottom", vjust=1.5, align="hv")
@@ -245,14 +245,14 @@ plot_predictions_vs_competitor <- function(pred_eqrnn, pred_comp, quantiles_pred
   return(pred_vs_true_plot)
 }
 
-plot_rmse_quantile <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X_test, quantiles_predict, intermediate_method=c("grf","oracle"),
+plot_rmse_quantile <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X_test, prob_lvls_predict, intermediate_method=c("grf","oracle"),
                                interm_lvl, interm_quant_train, model, distr, df, factorize=TRUE, test_data="other",
                                legend.position="bottom", crop_obs=0, hide_ylab=FALSE, bias_variance=FALSE, crop_Rbv=c(0,0,0)){
   #X_test should be halton to get ISE
   
   intermediate_method <- match.arg(intermediate_method)
   ntest <- nrow(X_test)
-  nb_quantiles_predict <- length(quantiles_predict)
+  nb_prob_lvls_predict <- length(prob_lvls_predict)
   #Predict intermediate quantiles on X_test
   if(intermediate_method=="grf"){
     pred_interm <- predict(fit_grf, newdata = X_test, quantiles = c(interm_lvl))$predictions
@@ -260,31 +260,31 @@ plot_rmse_quantile <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X
     pred_interm <- generate_theoretical_quantiles(quantiles = c(interm_lvl), X = X_test, model = model, distr = distr, df = df)
   }
   #High quantile prediction with GRF
-  pred_grf_test <- predict(fit_grf, newdata = X_test, quantiles = quantiles_predict)$predictions
+  pred_grf_test <- predict(fit_grf, newdata = X_test, quantiles = prob_lvls_predict)$predictions
   # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = Y_train, ntest = ntest)
+  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = Y_train, ntest = ntest)
   # SEMI-CONDITIONAL predicted quantiles
   pred_semicond <- predict_GPD_semiconditional(Y=Y_train, interm_lvl=interm_lvl, thresh_quantiles=interm_quant_train,
-                                               interm_quantiles_test=pred_interm, quantiles_predict=quantiles_predict)
+                                               interm_quantiles_test=pred_interm, prob_lvls_predict=prob_lvls_predict)
   # GROUND-TRUTH (y_test)
-  pred_true <- generate_theoretical_quantiles(quantiles = quantiles_predict, X = X_test, model = model, distr = distr, df = df)
+  pred_true <- generate_theoretical_quantiles(quantiles = prob_lvls_predict, X = X_test, model = model, distr = distr, df = df)
   # Prediction GBEX
-  pred_gbex <- gbex_predict(fit_gbex, X_test, to_predict=quantiles_predict, intermediate_quantiles=pred_interm, interm_lvl=interm_lvl)
-  pred_egam <- predict_gpd_gam(fit_egam, X_test, to_predict=quantiles_predict,
+  pred_gbex <- gbex_predict(fit_gbex, X_test, to_predict=prob_lvls_predict, intermediate_quantiles=pred_interm, interm_lvl=interm_lvl)
+  pred_egam <- predict_gpd_gam(fit_egam, X_test, to_predict=prob_lvls_predict,
                                intermediate_quantiles=pred_interm, interm_lvl=interm_lvl)
   
   #Final EQRN predictions on X_test
-  pred_eqrnn <- EQRN_predict(fit_eqrn, X_test, quantiles_predict, pred_interm, interm_lvl)
+  pred_eqrnn <- EQRN_predict(fit_eqrn, X_test, prob_lvls_predict, pred_interm, interm_lvl)
   
   # Compute losses for desired predicted quantiles
-  RMSEs_eqrnn <- sqrt(multilevel_MSE(pred_true,pred_eqrnn,quantiles_predict,give_names=FALSE))
-  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,quantiles_predict,give_names=FALSE))
-  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,quantiles_predict,give_names=FALSE))
-  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,quantiles_predict,give_names=FALSE))
-  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,quantiles_predict,give_names=FALSE))
-  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_egam,quantiles_predict,give_names=FALSE))
+  RMSEs_eqrnn <- sqrt(multilevel_MSE(pred_true,pred_eqrnn,prob_lvls_predict,give_names=FALSE))
+  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,prob_lvls_predict,give_names=FALSE))
+  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,prob_lvls_predict,give_names=FALSE))
+  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,prob_lvls_predict,give_names=FALSE))
+  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,prob_lvls_predict,give_names=FALSE))
+  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_egam,prob_lvls_predict,give_names=FALSE))
   
-  Q_lvls <- if(factorize){as_factor(roundm(quantiles_predict,4))}else{quantiles_predict}
+  Q_lvls <- if(factorize){as_factor(roundm(prob_lvls_predict,4))}else{prob_lvls_predict}
   
   met_names <- c("Uncond", "Semi-cond", "GRF", "EGAM", "GBEX", "EQRN")
   df_rmse <- data.frame(Quantile=Q_lvls, Uncond=RMSEs_unc, Semi_cond=RMSEs_semicond,
@@ -311,26 +311,26 @@ plot_rmse_quantile <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X
     
   }else{
     # Compute metrics for desired predicted quantiles
-    bias_eqrnn <- multilevel_pred_bias(pred_true, pred_eqrnn, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_grf <- multilevel_pred_bias(pred_true, pred_grf_test, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_unc <- multilevel_pred_bias(pred_true, pred_unc$predictions, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_semicond <- multilevel_pred_bias(pred_true, pred_semicond$predictions, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_gbex <- multilevel_pred_bias(pred_true, pred_gbex, quantiles_predict, square_bias=FALSE, give_names=FALSE)
-    bias_exgam <- multilevel_pred_bias(pred_true, pred_egam, quantiles_predict, square_bias=FALSE, give_names=FALSE)
+    bias_eqrnn <- multilevel_pred_bias(pred_true, pred_eqrnn, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_grf <- multilevel_pred_bias(pred_true, pred_grf_test, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_unc <- multilevel_pred_bias(pred_true, pred_unc$predictions, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_semicond <- multilevel_pred_bias(pred_true, pred_semicond$predictions, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_gbex <- multilevel_pred_bias(pred_true, pred_gbex, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
+    bias_exgam <- multilevel_pred_bias(pred_true, pred_egam, prob_lvls_predict, square_bias=FALSE, give_names=FALSE)
     
-    rstd_eqrnn <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn, quantiles_predict, give_names=FALSE))
-    rstd_grf <- sqrt(multilevel_resid_var(pred_true, pred_grf_test, quantiles_predict, give_names=FALSE))
-    rstd_unc <- sqrt(multilevel_resid_var(pred_true, pred_unc$predictions, quantiles_predict, give_names=FALSE))
-    rstd_semicond <- sqrt(multilevel_resid_var(pred_true, pred_semicond$predictions, quantiles_predict, give_names=FALSE))
-    rstd_gbex <- sqrt(multilevel_resid_var(pred_true, pred_gbex, quantiles_predict, give_names=FALSE))
-    rstd_exgam <- sqrt(multilevel_resid_var(pred_true, pred_egam, quantiles_predict, give_names=FALSE))
+    rstd_eqrnn <- sqrt(multilevel_resid_var(pred_true, pred_eqrnn, prob_lvls_predict, give_names=FALSE))
+    rstd_grf <- sqrt(multilevel_resid_var(pred_true, pred_grf_test, prob_lvls_predict, give_names=FALSE))
+    rstd_unc <- sqrt(multilevel_resid_var(pred_true, pred_unc$predictions, prob_lvls_predict, give_names=FALSE))
+    rstd_semicond <- sqrt(multilevel_resid_var(pred_true, pred_semicond$predictions, prob_lvls_predict, give_names=FALSE))
+    rstd_gbex <- sqrt(multilevel_resid_var(pred_true, pred_gbex, prob_lvls_predict, give_names=FALSE))
+    rstd_exgam <- sqrt(multilevel_resid_var(pred_true, pred_egam, prob_lvls_predict, give_names=FALSE))
     
-    Rsqr_eqrnn <- multilevel_R_squared(pred_true, pred_eqrnn, quantiles_predict, give_names=FALSE)
-    Rsqr_grf <- multilevel_R_squared(pred_true, pred_grf_test, quantiles_predict, give_names=FALSE)
-    Rsqr_unc <- multilevel_R_squared(pred_true, pred_unc$predictions, quantiles_predict, give_names=FALSE)
-    Rsqr_semicond <- multilevel_R_squared(pred_true, pred_semicond$predictions, quantiles_predict, give_names=FALSE)
-    Rsqr_gbex <- multilevel_R_squared(pred_true, pred_gbex, quantiles_predict, give_names=FALSE)
-    Rsqr_exgam <- multilevel_R_squared(pred_true, pred_egam, quantiles_predict, give_names=FALSE)
+    Rsqr_eqrnn <- multilevel_R_squared(pred_true, pred_eqrnn, prob_lvls_predict, give_names=FALSE)
+    Rsqr_grf <- multilevel_R_squared(pred_true, pred_grf_test, prob_lvls_predict, give_names=FALSE)
+    Rsqr_unc <- multilevel_R_squared(pred_true, pred_unc$predictions, prob_lvls_predict, give_names=FALSE)
+    Rsqr_semicond <- multilevel_R_squared(pred_true, pred_semicond$predictions, prob_lvls_predict, give_names=FALSE)
+    Rsqr_gbex <- multilevel_R_squared(pred_true, pred_gbex, prob_lvls_predict, give_names=FALSE)
+    Rsqr_exgam <- multilevel_R_squared(pred_true, pred_egam, prob_lvls_predict, give_names=FALSE)
     
     Rbv_names <- c("Quantile R squared", "Bias", "Residual standard deviation")
     
@@ -341,7 +341,7 @@ plot_rmse_quantile <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X
                          EGAM=c(Rsqr_exgam,bias_exgam,rstd_exgam),
                          GBEX=c(Rsqr_gbex,bias_gbex,rstd_gbex),
                          EQRN=c(Rsqr_eqrnn,bias_eqrnn,rstd_eqrnn),
-                         metric=factor(rep(Rbv_names, each=nb_quantiles_predict), levels=Rbv_names)) %>%
+                         metric=factor(rep(Rbv_names, each=nb_prob_lvls_predict), levels=Rbv_names)) %>%
       rename_with(~str_replace(., "Semi_cond", "Semi-cond")) %>% 
       tidyr::gather(key="Model", value="Error", all_of(met_names), factor_key=TRUE)
     
@@ -376,10 +376,10 @@ plot_rmse_quantile <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X
 
 
 plot_predictions_2D <- function(pred_eqrnn_test, pred_gbex_test, pred_grf_test, pred_exgam_test,
-                                pred_semicond, ground_truth, X_test, quantile_predicted, 
+                                pred_semicond, ground_truth, X_test, prob_lvl_predicted, 
                                 legend.position="bottom", show_title=FALSE){
   
-  title_q <- if(show_title){paste0("Predictions (q=",quantile_predicted,")")}else{NULL}
+  title_q <- if(show_title){paste0("Predictions (q=",prob_lvl_predicted,")")}else{NULL}
   
   df <- data.frame(X1=X_test[,1], X2=X_test[,2], EQRNN=pred_eqrnn_test,
                    gbex=pred_gbex_test, GRF=pred_grf_test, ExGAM=pred_exgam_test,
@@ -388,7 +388,7 @@ plot_predictions_2D <- function(pred_eqrnn_test, pred_gbex_test, pred_grf_test, 
   
   pred2D <- df %>% ggplot(aes(X1, X2, z = Quantile)) + theme_minimal() +
     geom_raster(aes(fill = Quantile)) +
-    scale_fill_continuous(name = latex2exp::TeX(paste0(r"(Quantile ($\tau=)",quantile_predicted,"$):\t"))) +
+    scale_fill_continuous(name = latex2exp::TeX(paste0(r"(Quantile ($\tau=)",prob_lvl_predicted,"$):\t"))) +
     coord_fixed() +
     theme(aspect.ratio=1, legend.position=legend.position, axis.ticks=element_blank(),
           plot.background=element_blank(), panel.background=element_blank(), legend.background=element_blank(),
@@ -452,9 +452,9 @@ YvsX_scatter_vect <- function(x, y, x_name, y_name, groupby=NULL, title=NULL){
 plot_exceedences_quantile <- function(pred_eqrnn, y, quantile_levels, log_scaling=FALSE, factorize=TRUE, show_legend=FALSE){
   
   n <- nrow(pred_eqrnn)
-  nb_quantiles_predict <- length(quantile_levels)
+  nb_prob_lvls_predict <- length(quantile_levels)
   if(n!=length(y)){stop("Observation number mismatch between predictions and y in 'plot_exceedences_quantile'.")}
-  if(nb_quantiles_predict!=ncol(pred_eqrnn)){stop("Quantile levels mismatch between predictions and quantile_levels in 'plot_exceedences_quantile'.")}
+  if(nb_prob_lvls_predict!=ncol(pred_eqrnn)){stop("Quantile levels mismatch between predictions and quantile_levels in 'plot_exceedences_quantile'.")}
   
   Q_lvls <- if(factorize){as_factor(roundm(quantile_levels,4))}else{quantile_levels}
   df <- data.frame(Quantile=Q_lvls, Expected=(1-quantile_levels)*n, EQRNN=colSums(c(y)>pred_eqrnn))
@@ -481,9 +481,9 @@ plot_exceedences_quantile_comp <- function(pred_eqrn, pred_grf, pred_unc, pred_s
                                            y, quantile_levels, log_scaling=FALSE, factorize=TRUE, legend.position="bottom"){
   
   n <- nrow(pred_eqrn)
-  nb_quantiles_predict <- length(quantile_levels)
+  nb_prob_lvls_predict <- length(quantile_levels)
   if(n!=length(y)){stop("Observation number mismatch between predictions and y in 'plot_exceedences_quantile'.")}
-  if(nb_quantiles_predict!=ncol(pred_eqrn)){stop("Quantile levels mismatch between predictions and quantile_levels in 'plot_exceedences_quantile'.")}
+  if(nb_prob_lvls_predict!=ncol(pred_eqrn)){stop("Quantile levels mismatch between predictions and quantile_levels in 'plot_exceedences_quantile'.")}
   
   Q_lvls <- if(factorize){as_factor(roundm(quantile_levels,4))}else{quantile_levels}
   
@@ -520,9 +520,9 @@ plot_exceedences_quantile_diff <- function(pred_eqrn, pred_grf, pred_unc, pred_s
   
   type_diff <- match.arg(type_diff)
   n <- nrow(pred_eqrn)
-  nb_quantiles_predict <- length(quantile_levels)
+  nb_prob_lvls_predict <- length(quantile_levels)
   if(n!=length(y)){stop("Observation number mismatch between predictions and y in 'plot_exceedences_quantile'.")}
-  if(nb_quantiles_predict!=ncol(pred_eqrn)){stop("Quantile levels mismatch between predictions and quantile_levels in 'plot_exceedences_quantile'.")}
+  if(nb_prob_lvls_predict!=ncol(pred_eqrn)){stop("Quantile levels mismatch between predictions and quantile_levels in 'plot_exceedences_quantile'.")}
   
   Q_lvls <- if(factorize){as_factor(roundm(quantile_levels,4))}else{quantile_levels}
   
@@ -642,13 +642,13 @@ plot_rse_box_threshold <- function(residuals_tbl, interm_lvls="interm_lvl", pred
 # ================================= DEPRECATED =================================
 
 
-plot_error_quantile <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X_test, quantiles_predict, intermediate_method=c("grf","oracle"),
+plot_error_quantile <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, X_test, prob_lvls_predict, intermediate_method=c("grf","oracle"),
                                 interm_lvl, interm_quant_train, model, distr, df, factorize=TRUE, test_data="other"){
   #X_test should ba halton to get ISE
   
   intermediate_method <- match.arg(intermediate_method)
   ntest <- nrow(X_test)
-  nb_quantiles_predict <- length(quantiles_predict)
+  nb_prob_lvls_predict <- length(prob_lvls_predict)
   #Predict intermediate quantiles on X_test
   if(intermediate_method=="grf"){
     pred_interm <- predict(fit_grf, newdata = X_test, quantiles = c(interm_lvl))$predictions
@@ -656,37 +656,37 @@ plot_error_quantile <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, 
     pred_interm <- generate_theoretical_quantiles(quantiles = c(interm_lvl), X = X_test, model = model, distr = distr, df = df)
   }
   #High quantile prediction with GRF
-  pred_grf_test <- predict(fit_grf, newdata = X_test, quantiles = quantiles_predict)$predictions
+  pred_grf_test <- predict(fit_grf, newdata = X_test, quantiles = prob_lvls_predict)$predictions
   # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = Y_train, ntest = ntest)
+  pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = Y_train, ntest = ntest)
   # SEMI-CONDITIONAL predicted quantiles
   pred_semicond <- predict_GPD_semiconditional(Y=Y_train, interm_lvl=interm_lvl, thresh_quantiles=interm_quant_train,
-                                               interm_quantiles_test=pred_interm, quantiles_predict=quantiles_predict)
+                                               interm_quantiles_test=pred_interm, prob_lvls_predict=prob_lvls_predict)
   # GROUND-TRUTH (y_test)
-  pred_true <- generate_theoretical_quantiles(quantiles = quantiles_predict, X = X_test, model = model, distr = distr, df = df)
+  pred_true <- generate_theoretical_quantiles(quantiles = prob_lvls_predict, X = X_test, model = model, distr = distr, df = df)
   # Prediction GBEX
-  pred_gbex <- gbex_predict(fit_gbex, X_test, to_predict=quantiles_predict, intermediate_quantiles=pred_interm, interm_lvl=interm_lvl)
-  pred_egam <- predict_gpd_gam(fit_egam, X_test, to_predict=quantiles_predict,
+  pred_gbex <- gbex_predict(fit_gbex, X_test, to_predict=prob_lvls_predict, intermediate_quantiles=pred_interm, interm_lvl=interm_lvl)
+  pred_egam <- predict_gpd_gam(fit_egam, X_test, to_predict=prob_lvls_predict,
                                intermediate_quantiles=pred_interm, interm_lvl=interm_lvl)
   
   #Final EQRN predictions on X_test
-  pred_eqrn <- EQRN_predict(fit_eqrn, X_test, quantiles_predict, pred_interm, interm_lvl)
+  pred_eqrn <- EQRN_predict(fit_eqrn, X_test, prob_lvls_predict, pred_interm, interm_lvl)
   
   # Compute losses for desired predicted quantiles
-  MAEs_eqrnn <- multilevel_MAE(pred_true,pred_eqrn,quantiles_predict,give_names=FALSE)
-  RMSEs_eqrnn <- sqrt(multilevel_MSE(pred_true,pred_eqrn,quantiles_predict,give_names=FALSE))
-  MAEs_grf <- multilevel_MAE(pred_true,pred_grf_test,quantiles_predict,give_names=FALSE)
-  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,quantiles_predict,give_names=FALSE))
-  MAEs_unc <- multilevel_MAE(pred_true,pred_unc$predictions,quantiles_predict,give_names=FALSE)
-  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,quantiles_predict,give_names=FALSE))
-  MAEs_semicond <- multilevel_MAE(pred_true,pred_semicond$predictions,quantiles_predict,give_names=FALSE)
-  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,quantiles_predict,give_names=FALSE))
-  MAEs_gbex <- multilevel_MAE(pred_true,pred_gbex,quantiles_predict,give_names=FALSE)
-  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,quantiles_predict,give_names=FALSE))
-  MAEs_exgam <- multilevel_MAE(pred_true,pred_egam,quantiles_predict,give_names=FALSE)
-  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_egam,quantiles_predict,give_names=FALSE))
+  MAEs_eqrnn <- multilevel_MAE(pred_true,pred_eqrn,prob_lvls_predict,give_names=FALSE)
+  RMSEs_eqrnn <- sqrt(multilevel_MSE(pred_true,pred_eqrn,prob_lvls_predict,give_names=FALSE))
+  MAEs_grf <- multilevel_MAE(pred_true,pred_grf_test,prob_lvls_predict,give_names=FALSE)
+  RMSEs_grf <- sqrt(multilevel_MSE(pred_true,pred_grf_test,prob_lvls_predict,give_names=FALSE))
+  MAEs_unc <- multilevel_MAE(pred_true,pred_unc$predictions,prob_lvls_predict,give_names=FALSE)
+  RMSEs_unc <- sqrt(multilevel_MSE(pred_true,pred_unc$predictions,prob_lvls_predict,give_names=FALSE))
+  MAEs_semicond <- multilevel_MAE(pred_true,pred_semicond$predictions,prob_lvls_predict,give_names=FALSE)
+  RMSEs_semicond <- sqrt(multilevel_MSE(pred_true,pred_semicond$predictions,prob_lvls_predict,give_names=FALSE))
+  MAEs_gbex <- multilevel_MAE(pred_true,pred_gbex,prob_lvls_predict,give_names=FALSE)
+  RMSEs_gbex <- sqrt(multilevel_MSE(pred_true,pred_gbex,prob_lvls_predict,give_names=FALSE))
+  MAEs_exgam <- multilevel_MAE(pred_true,pred_egam,prob_lvls_predict,give_names=FALSE)
+  RMSEs_exgam <- sqrt(multilevel_MSE(pred_true,pred_egam,prob_lvls_predict,give_names=FALSE))
   
-  Q_lvls <- if(factorize){as_factor(roundm(quantiles_predict,4))}else{quantiles_predict}
+  Q_lvls <- if(factorize){as_factor(roundm(prob_lvls_predict,4))}else{prob_lvls_predict}
   df_rmse <- data.frame(Quantile=Q_lvls, Uncond=RMSEs_unc, Semi_cond=RMSEs_semicond,
                         GRF=RMSEs_grf, gpd_GAM=RMSEs_exgam, gbex=RMSEs_gbex, EQRNN=RMSEs_eqrnn)
   df_mae <- data.frame(Quantile=Q_lvls, Uncond=MAEs_unc, Semi_cond=MAEs_semicond,
@@ -717,20 +717,20 @@ plot_error_quantile <- function(fit_eqrn, fit_grf, fit_gbex, fit_egam, Y_train, 
   return(err_plot)
 }
 
-plot_error_distrib_results <- function(results_tibble, quantile_predicted){
-  resid_box <- data.frame(Uncond_MSEs=results_tibble[[paste0("Uncond_test_MSE_q", quantile_predicted)]],
-                          SemiCond_MSEs=results_tibble[[paste0("Semicond_test_MSE_q", quantile_predicted)]],
-                          GRF_MSEs=results_tibble[[paste0("GRF_test_MSE_q", quantile_predicted)]],
-                          EQRNN_MSEs=results_tibble[[paste0("EQRNN_test_MSE_q", quantile_predicted)]],
-                          Uncond_MAEs=results_tibble[[paste0("Uncond_test_MAE_q", quantile_predicted)]],
-                          SemiCond_MAEs=results_tibble[[paste0("Semicond_test_MAE_q", quantile_predicted)]],
-                          GRF_MAEs=results_tibble[[paste0("GRF_test_MAE_q", quantile_predicted)]],
-                          EQRNN_MAEs=results_tibble[[paste0("EQRNN_test_MAE_q", quantile_predicted)]]) %>%
+plot_error_distrib_results <- function(results_tibble, prob_lvl_predicted){
+  resid_box <- data.frame(Uncond_MSEs=results_tibble[[paste0("Uncond_test_MSE_q", prob_lvl_predicted)]],
+                          SemiCond_MSEs=results_tibble[[paste0("Semicond_test_MSE_q", prob_lvl_predicted)]],
+                          GRF_MSEs=results_tibble[[paste0("GRF_test_MSE_q", prob_lvl_predicted)]],
+                          EQRNN_MSEs=results_tibble[[paste0("EQRNN_test_MSE_q", prob_lvl_predicted)]],
+                          Uncond_MAEs=results_tibble[[paste0("Uncond_test_MAE_q", prob_lvl_predicted)]],
+                          SemiCond_MAEs=results_tibble[[paste0("Semicond_test_MAE_q", prob_lvl_predicted)]],
+                          GRF_MAEs=results_tibble[[paste0("GRF_test_MAE_q", prob_lvl_predicted)]],
+                          EQRNN_MAEs=results_tibble[[paste0("EQRNN_test_MAE_q", prob_lvl_predicted)]]) %>%
     tidyr::gather(key="Method", value="Value", factor_key=TRUE) %>% ggplot( aes(x=Method, y=Value, group=Method, fill=Method)) +
     geom_abline(intercept=0, slope=0, col="white", size=1) + geom_violin(width=1, color="grey", alpha=0.5) +
     stat_boxplot(geom = "errorbar", width=0.5) + geom_boxplot(width=0.75, color="black", alpha=0.8)+ coord_flip() +
     stat_summary(fun=mean, geom="point", shape=4, size=3, color="black", fill="black") +
-    labs(title = paste0("Quantile Residuals (q=",quantile_predicted,")"), x=NULL, y=NULL) +
+    labs(title = paste0("Quantile Residuals (q=",prob_lvl_predicted,")"), x=NULL, y=NULL) +
     theme(legend.position="none", panel.grid.major.y = element_blank())
   return(resid_box)
 }

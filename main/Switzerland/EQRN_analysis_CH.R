@@ -29,7 +29,7 @@ prop_valid <- 1/4
 # PARAM: General
 intermediate_method <- "qrn"
 interm_lvl = 0.8
-quantiles_predict = c(0.995,0.999,0.9995)
+prob_lvls_predict = c(0.995,0.999,0.9995)
 years_return <- 100
 q_levels_nex <- 1-(1e-1*(10^seq(0,-3,-0.5)))
 
@@ -253,21 +253,21 @@ cat("\nElapsed time (EQRN fit):\n")
 print(Sys.time() - start_time)
 
 
-## ======== TESTING (at levels 'quantiles_predict') ========
+## ======== TESTING (at levels 'prob_lvls_predict') ========
 
 #Final EQRN quantile predictions on X_test (and X_valid)
-pred_eqrn_val <- EQRN_predict_seq(fit_eqrn, X_valid, y_valid, quantiles_predict, valid_quantiles, interm_lvl, crop_predictions=TRUE)
-pred_eqrn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, quantiles_predict, pred_interm, interm_lvl, crop_predictions=TRUE)#[params$seq_len+(1:n_test)]
+pred_eqrn_val <- EQRN_predict_seq(fit_eqrn, X_valid, y_valid, prob_lvls_predict, valid_quantiles, interm_lvl, crop_predictions=TRUE)
+pred_eqrn <- EQRN_predict_seq(fit_eqrn, X_test, y_test, prob_lvls_predict, pred_interm, interm_lvl, crop_predictions=TRUE)#[params$seq_len+(1:n_test)]
 pred_eqrn_params <- EQRN_predict_params_seq(fit_eqrn, X_test, y_test, intermediate_quantiles=pred_interm,
                                             return_parametrization="classical")
 
 
 # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = y_train_all, ntest = n_test)
+pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = y_train_all, ntest = n_test)
 
 # SEMI-CONDITIONAL predicted quantiles
 pred_semicond <- predict_GPD_semiconditional(Y=y_train_all[(seq_len+1):n_train_all], interm_lvl=interm_lvl, thresh_quantiles=interm_quantiles_all[(seq_len+1):n_train_all],
-                                             interm_quantiles_test=pred_interm[seq_len+(1:n_test)], quantiles_predict=quantiles_predict)
+                                             interm_quantiles_test=pred_interm[seq_len+(1:n_test)], prob_lvls_predict=prob_lvls_predict)
 
 # Unconditional parameters and losses (for comparison with EQRN fit losses)
 uncond_losses_fixed <- unconditional_train_valid_GPD_loss(Y_train=y_train[(seq_len+1):n_train], interm_lvl=interm_lvl, Y_valid=y_valid[seq_len+(1:n_valid)])
@@ -345,10 +345,10 @@ if(do_competitors){
     lagged_interm_q_trall <- interm_quantiles_all_c[(grf_pars$timedep+1):length(interm_quantiles_all_c), , drop=F]
     laged_interm_q_test <- pred_interm_c[(grf_pars$timedep+1):length(pred_interm_c), , drop=F]
     #High quantile prediction with GRF
-    pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = quantiles_predict)$predictions
+    pred_grf_test <- predict(fit_grf, newdata=lagged_test, quantiles = prob_lvls_predict)$predictions
     pred_grf_rl <- predict(fit_grf, newdata=lagged_test, quantiles = p_daily_100y)$predictions
     pred_grf_nex <- predict(fit_grf, newdata=lagged_test, quantiles = q_levels_nex)$predictions
-    #pred_grf_train_all <- predict(fit_grf, newdata=NULL, quantiles = quantiles_predict)$predictions
+    #pred_grf_train_all <- predict(fit_grf, newdata=NULL, quantiles = prob_lvls_predict)$predictions
     
     fit_gbex <- gbex_fit(X=lagged_train_all, y=y_train_all[(grf_pars$timedep+1):length(y_train_all)], intermediate_quantiles=lagged_interm_q_trall,
                          interm_lvl=interm_lvl, intermediate_q_feature=gbex_params$intermediate_q_feature, scale_features=gbex_params$scale_features,
@@ -360,13 +360,13 @@ if(do_competitors){
     fit_exqar <- EXQAR_fit(y_train_all, X=X_train_all, lag=grf_pars$timedep,
                            delta1=exqar_params$delta1, delta2=exqar_params$delta2)
     
-    pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=quantiles_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
+    pred_gbex <- gbex_predict(fit_gbex, lagged_test, to_predict=prob_lvls_predict, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
     pred_gbex_rl <- gbex_predict(fit_gbex, lagged_test, to_predict=p_daily_100y, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
-    pred_egam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=quantiles_predict,
+    pred_egam <- predict_gpd_gam(fit_egam, lagged_test, to_predict=prob_lvls_predict,
                                  intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
     pred_egam_rl <- predict_gpd_gam(fit_egam, lagged_test, to_predict=p_daily_100y,
                                     intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
-    pred_exqar <- EXQAR_predict(fit_exqar, y_test, X=X_test, quantiles_predict, tol=1e-4, min_prop=0.3, return_infos=FALSE)
+    pred_exqar <- EXQAR_predict(fit_exqar, y_test, X=X_test, prob_lvls_predict, tol=1e-4, min_prop=0.3, return_infos=FALSE)
     pred_exqar_rl <- EXQAR_predict(fit_exqar, y_test, X=X_test, p_daily_100y, tol=1e-4, min_prop=0.3, return_infos=FALSE)
     pred_gbex_nex <- gbex_predict(fit_gbex, lagged_test, to_predict=q_levels_nex, intermediate_quantiles=laged_interm_q_test, interm_lvl=interm_lvl)
     pred_egam_nex <- predict_gpd_gam(fit_egam, lagged_test, to_predict=q_levels_nex,
@@ -406,9 +406,9 @@ excess_prob_100y_uncond <- GPD_excess_probability(val=return_lvl_100y, sigma=pre
 pred_unc_rl <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = p_daily_100y, Y = y_train_all, ntest = n_test)
 pred_unc_nex <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = q_levels_nex, Y = y_train_all, ntest = n_test)
 pred_semicond_rl <- predict_GPD_semiconditional(Y=y_train_all[(seq_len+1):n_train_all], interm_lvl=interm_lvl, thresh_quantiles=interm_quantiles_all[(seq_len+1):n_train_all],
-                                                interm_quantiles_test=pred_interm[seq_len+(1:n_test)], quantiles_predict=p_daily_100y)
+                                                interm_quantiles_test=pred_interm[seq_len+(1:n_test)], prob_lvls_predict=p_daily_100y)
 pred_semicond_nex <- predict_GPD_semiconditional(Y=y_train_all[(seq_len+1):n_train_all], interm_lvl=interm_lvl, thresh_quantiles=interm_quantiles_all[(seq_len+1):n_train_all],
-                                                interm_quantiles_test=pred_interm[seq_len+(1:n_test)], quantiles_predict=q_levels_nex)
+                                                interm_quantiles_test=pred_interm[seq_len+(1:n_test)], prob_lvls_predict=q_levels_nex)
 
 
 ## ============= Quantile and exceedance proba prediction plots ==============
@@ -461,7 +461,7 @@ for(j in seq_along(comp_excesses_itterator)){
 if(do_competitors){
   fit_exqar <- readRDS(paste0(save_path, "competitor_fits/exqar.rds"))
   pred_exqar_rldet <- EXQAR_predict(fit_exqar, y_test, X=X_test, p_daily_100y, tol=1e-4, min_prop=0.3, return_infos=TRUE)
-  p_exqar_expl <- plot_series_comparison4(c(pred_exqar_rl)[ids_2005], pred_exqar_rldet$EVI[ids_2005], pred_exqar_rldet$am[ids_2005],
+  p_exqar_expl <- plot_series_comparison4(c(pred_exqar_rl)[ids_2005], pred_exqar_rldet$shape[ids_2005], pred_exqar_rldet$am[ids_2005],
                                           pred_exqar_rldet$Ut[ids_2005], Date_index=Dates[n_train_all+(ids_2005)],
                                           var_names=c("'EXQAR EQ-pred'", "'EXQAR EVI pred'", "'EXQAR scale pred'", "'EXQAR Q0-pred'"),
                                           date_breaks="1 month", date_minor_breaks="1 day", event_dates=date_2005_first, show_top=0)

@@ -74,17 +74,17 @@ if(intermediate_method=="grf"){
 ## ======== TESTING (GRF and Ground truth) ========
 
 #High quantile prediction with GRF
-pred_grf_test <- predict(fit_grf, newdata = X_test, quantiles = quantiles_predict)$predictions
+pred_grf_test <- predict(fit_grf, newdata = X_test, quantiles = prob_lvls_predict)$predictions
 
 # UNCONDITIONAL predicted quantile(s) (Y quantile on X_train)
-pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = quantiles_predict, Y = dat$Y, ntest = ntest)
+pred_unc <- predict_unconditional_quantiles(interm_lvl = interm_lvl, quantiles = prob_lvls_predict, Y = dat$Y, ntest = ntest)
 
 # SEMI-CONDITIONAL predicted quantiles
 pred_semicond <- predict_GPD_semiconditional(Y=dat$Y, interm_lvl=interm_lvl, thresh_quantiles=intermediate_quantiles,
-                                             interm_quantiles_test=pred_interm, quantiles_predict=quantiles_predict)
+                                             interm_quantiles_test=pred_interm, prob_lvls_predict=prob_lvls_predict)
 
 # GROUND-TRUTH (y_test)
-pred_true <- generate_theoretical_quantiles(quantiles = quantiles_predict, X = X_test, model = model, distr = distr, df = df)
+pred_true <- generate_theoretical_quantiles(quantiles = prob_lvls_predict, X = X_test, model = model, distr = distr, df = df)
 
 # Unconditional parameters and losses
 uncond_losses_fixed <- unconditional_train_valid_GPD_loss(Y_train=dat$Y, interm_lvl=interm_lvl, Y_valid=dat_valid$Y)
@@ -130,17 +130,17 @@ results_grid_fit <- foreach(params=grid_l, .errorhandling="remove", .combine=rbi
   ## ======== TESTING ========
   
   #Final EQRN predictions on X_test
-  pred_eqrn <- EQRN_predict(fit_eqrn, X_test, quantiles_predict, pred_interm, interm_lvl)
+  pred_eqrn <- EQRN_predict(fit_eqrn, X_test, prob_lvls_predict, pred_interm, interm_lvl)
   
   # Compute losses for desired predicted quantiles
-  MSE_losses <- multilevel_MSE(pred_true, pred_eqrn, quantiles_predict, prefix="test_", give_names=TRUE)
-  MAE_losses <- multilevel_MAE(pred_true, pred_eqrn, quantiles_predict, prefix="test_", give_names=TRUE)
+  MSE_losses <- multilevel_MSE(pred_true, pred_eqrn, prob_lvls_predict, prefix="test_", give_names=TRUE)
+  MAE_losses <- multilevel_MAE(pred_true, pred_eqrn, prob_lvls_predict, prefix="test_", give_names=TRUE)
   
-  nb_quantiles_predict <- length(quantiles_predict)
-  for(i in 1:nb_quantiles_predict){
-    resid_box <- residuals_boxplot_eqrn(pred_eqrn[,i], pred_grf_test[,i], pred_true[,i], quantiles_predict[i])
+  nb_prob_lvls_predict <- length(prob_lvls_predict)
+  for(i in 1:nb_prob_lvls_predict){
+    resid_box <- residuals_boxplot_eqrn(pred_eqrn[,i], pred_grf_test[,i], pred_true[,i], prob_lvls_predict[i])
     if(save_plots){
-      ggsave(paste0(params_string, "_q",quantiles_predict[i]*10000,"_residbox.png"), plot=resid_box, device="png",
+      ggsave(paste0(params_string, "_q",prob_lvls_predict[i]*10000,"_residbox.png"), plot=resid_box, device="png",
              path=save_path, width=250, height=100, units="mm", dpi=300)
     }
   }
@@ -162,7 +162,7 @@ results_grid_fit <- foreach(params=grid_l, .errorhandling="remove", .combine=rbi
               min_lr=params$min_lr,
               patience_stop=params$patience_stop,
               orthogonal_gpd=params$orthogonal_gpd)
-  RESULTS <- list(pred_true=pred_true, pred_eqrn=pred_eqrn, pred_grf_test=pred_grf_test, quantiles_predict=quantiles_predict,
+  RESULTS <- list(pred_true=pred_true, pred_eqrn=pred_eqrn, pred_grf_test=pred_grf_test, prob_lvls_predict=prob_lvls_predict,
                   train_loss=fit_eqrn$train_loss, valid_loss=fit_eqrn$valid_loss,
                   uncond_losses_interm=uncond_losses_interm, params_string=params_string, output=output)
   safe_save_rds(RESULTS, paste0(save_path, "Results_",params_string,".rds"))
