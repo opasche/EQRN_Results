@@ -1,7 +1,7 @@
 # Specific
 z_*
 tmp_*
-#.vscode
+.vscode
 deprecated/
 data/Data/**
 data/data_wrangled/**
