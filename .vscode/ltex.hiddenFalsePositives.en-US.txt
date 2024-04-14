@@ -1,1 +1,0 @@
-{"rule":"MASS_AGREEMENT","sentence":"^\\QThe metadata include additional information gathered by the authors.\\E$"}
