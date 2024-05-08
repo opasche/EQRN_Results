@@ -248,15 +248,16 @@ QRN_seq_predict <- function(fit_qrn_ts, X, Y, q_level=fit_qrn_ts$interm_lvl, cro
 
 #' Predict method for a QRN_seq fitted object
 #'
-#' @param fit_qrn_ts Fitted `"QRN_seq"` object.
+#' @param object Fitted `"QRN_seq"` object.
 #' @inheritDotParams QRN_seq_predict -fit_qrn_ts
 #' 
 #' @details See [QRN_seq_predict()] for more details.
 #'
 #' @inherit QRN_seq_predict return
+#' @method predict QRN_seq
 #' @export
-predict.QRN_seq <- function(fit_qrn_ts, ...){
-  return(QRN_seq_predict(fit_qrn_ts, ...))
+predict.QRN_seq <- function(object, ...){
+  return(QRN_seq_predict(fit_qrn_ts=object, ...))
 }
 
 

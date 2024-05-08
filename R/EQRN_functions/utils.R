@@ -475,7 +475,7 @@ stop_doParallel_strategy <- function(strategy=c("sequential", "parallel"), cl){
 #' See the corresponding method documentation.
 #'
 #' @export
-excess_probability <- function (object, ...) {
+excess_probability <- function(object, ...){
   UseMethod("excess_probability")
 }
 

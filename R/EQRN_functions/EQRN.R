@@ -333,15 +333,16 @@ EQRN_predict <- function(fit_eqrn, X, prob_lvls_predict, intermediate_quantiles,
 
 #' Predict method for an EQRN_iid fitted object
 #'
-#' @param fit_eqrn Fitted `"EQRN_iid"` object.
+#' @param object Fitted `"EQRN_iid"` object.
 #' @inheritDotParams EQRN_predict -fit_eqrn
 #' 
 #' @details See [EQRN_predict()] for more details.
 #'
 #' @inherit EQRN_predict return
+#' @method predict EQRN_iid
 #' @export
-predict.EQRN_iid <- function(fit_eqrn, ...){
-  return(EQRN_predict(fit_eqrn, ...))
+predict.EQRN_iid <- function(object, ...){
+  return(EQRN_predict(fit_eqrn=object, ...))
 }
 
 
@@ -460,15 +461,16 @@ EQRN_excess_probability <- function(val, fit_eqrn, X, intermediate_quantiles, in
 
 #' Tail excess probability prediction method using an EQRN_iid object
 #'
-#' @param fit_eqrn Fitted `"EQRN_iid"` object.
+#' @param object Fitted `"EQRN_iid"` object.
 #' @inheritDotParams EQRN_excess_probability -fit_eqrn
 #' 
 #' @details See [EQRN_excess_probability()] for more details.
 #'
 #' @inherit EQRN_excess_probability return
+#' @method excess_probability EQRN_iid
 #' @export
-excess_probability.EQRN_iid <- function(fit_eqrn, ...){
-  return(EQRN_excess_probability(fit_eqrn=fit_eqrn, ...))
+excess_probability.EQRN_iid <- function(object, ...){
+  return(EQRN_excess_probability(fit_eqrn=object, ...))
 }
 
 
