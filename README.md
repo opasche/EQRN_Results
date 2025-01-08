@@ -1,8 +1,5 @@
 # EQRN Results
 
-<style>p {text-align: justify}</style>
-<style>ul {text-align: justify}</style>
-
 This supplementary material repository contains code, data, instructions and reproducible results from the article:
 
 > Pasche, O. C. and Engelke, S. (2024). "Neural networks for extreme quantile regression with an application to forecasting of flood risk". <i>Annals of Applied Statistics</i> 18(4), 2818–2839. https://doi.org/10.1214/24-AOAS1907 
