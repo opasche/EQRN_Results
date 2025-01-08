@@ -1,11 +1,14 @@
 # EQRN Results
 
+<style>p {text-align: justify}</style>
+<style>ul {text-align: justify}</style>
+
 This supplementary material repository contains code, data, instructions and reproducible results from the article:
 
-> Olivier C. Pasche and Sebastian Engelke. "Neural Networks for Extreme Quantile Regression with an Application to Forecasting of Flood Risk". Published in *Annals of Applied Statistics*. 
+> Pasche, O. C. and Engelke, S. (2024). "Neural networks for extreme quantile regression with an application to forecasting of flood risk". <i>Annals of Applied Statistics</i> 18(4), 2818–2839. https://doi.org/10.1214/24-AOAS1907 
 
-- Published article: *To appear in 2024*.
-- Preprint (2022): [ArXiv:2208.07590](https://arxiv.org/abs/2208.07590) ([pdf](https://arxiv.org/pdf/2208.07590)).
+- Published article: [DOI:10.1214/24-AOAS1907](https://doi.org/10.1214/24-AOAS1907) ([PDF](https://raw.githubusercontent.com/opasche/EQRN_Results/main/article/24-AOAS1907.pdf), [Supplement](https://raw.githubusercontent.com/opasche/EQRN_Results/main/article/aoas1907suppa.pdf)). 
+- Preprint (obsolete): [ArXiv:2208.07590](https://arxiv.org/abs/2208.07590) ([PDF](https://arxiv.org/pdf/2208.07590)). 
 
 
 ## EQRN Package
@@ -36,7 +39,7 @@ In the case study application, we use river discharge and precipitation data rec
 
 For convenience in reproducing our results, the FOEN has allowed us to share our processed version of the data. Both the stations' metadata and average daily discharge records are available in `./data/data_wrangled/`. The metadata include additional information gathered by the authors. 
 
-If you decide to use this version of the dataset, **please cite both the published article about this work (Pasche and Engelke) and the FOEN source clearly**.
+If you decide to use this version of the dataset, **please cite both the published article about this work (Pasche and Engelke, 2024) and the FOEN source clearly**.
 
 ### Precipitation Data
 
@@ -46,7 +49,8 @@ For reproducibility, the data needed are at least the daily total precipitation 
 
 ### Original Sources
 
-- Source for precipitation data: **MeteoSwiss** (<https://gate.meteoswiss.ch/idaweb>). 
+- Source for precipitation data: **MeteoSwiss**  
+(<https://gate.meteoswiss.ch/idaweb>). 
 - Source for river discharge data: **Swiss Federal Office for the Environment (FOEN)**  
 (<https://www.bafu.admin.ch/bafu/en/home/topics/water/state/data/obtaining-monitoring-data-on-the-topic-of-water/hydrological-data-service-for-watercourses-and-lakes.html>).
 
